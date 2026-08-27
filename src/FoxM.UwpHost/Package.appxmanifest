@@ -9,7 +9,7 @@
   <Identity
     Name="FoxM.Browser.Windows10Mobile"
     Publisher="CN=FoxMDev"
-    Version="1.0.0.0"
+    Version="1.1.0.0"
     ProcessorArchitecture="arm" />
 
   <mp:PhoneIdentity PhoneProductId="a8f6d72a-192a-43c2-bf7b-2384a56c3821" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>

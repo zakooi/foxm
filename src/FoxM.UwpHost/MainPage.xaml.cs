@@ -5,15 +5,14 @@ using Windows.System;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
-using Windows.Web.Http;
 using FoxM.UwpHost.Services;
+using FoxM.GoannaRuntime;
 
 namespace FoxM.UwpHost
 {
     public sealed partial class MainPage : Page
     {
         private const string DefaultHomePage = "https://duckduckgo.com";
-        private const string ModernGeckoUserAgent = "Mozilla/5.0 (Android; Mobile; rv:109.0) Gecko/115.0 Firefox/115.0";
 
         private TabManagerService _tabManager = new TabManagerService();
         private ObservableCollection<BookmarkItem> _bookmarks = new ObservableCollection<BookmarkItem>();
@@ -103,31 +102,12 @@ namespace FoxM.UwpHost
 
             try
             {
-                if (target.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase))
-                {
-                    BrowserCore.NavigateToString("<html><body style='background:#121214;color:#888;font-family:sans-serif;text-align:center;padding-top:100px;'><h2>🦊 FoxM Browser</h2><p>Sẵn sàng duyệt web.</p></body></html>");
-                    return;
-                }
-
-                // Gửi HTTP Request với Modern Firefox Gecko User-Agent
-                var uri = new Uri(target);
-                var request = new HttpRequestMessage(HttpMethod.Get, uri);
-                request.Headers.UserAgent.TryParseAdd(ModernGeckoUserAgent);
-                request.Headers.Accept.TryParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-                request.Headers.AcceptLanguage.TryParseAdd("vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7");
-                
-                BrowserCore.NavigateWithHttpRequestMessage(request);
+                // Điều hướng bằng Lõi C++ Goanna Engine (Direct2D + Necko HTTPS)
+                GoannaCore.Navigate(target);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                try
-                {
-                    BrowserCore.Navigate(new Uri(target));
-                }
-                catch (Exception ex)
-                {
-                    ShowErrorState("Không thể mở URL: " + ex.Message);
-                }
+                ShowErrorState("Không thể mở URL: " + ex.Message);
             }
         }
 
@@ -153,85 +133,58 @@ namespace FoxM.UwpHost
         }
 
         // =========================================================================
-        // SỰ KIỆN WEBVIEW
+        // SỰ KIỆN GOANNA C++ ENGINE
         // =========================================================================
 
-        private void BrowserCore_NavigationStarting(WebView sender, WebViewNavigationStartingEventArgs args)
+        private void GoannaCore_NavigationStarting(string url)
         {
             WebProgressBar.Visibility = Visibility.Visible;
-            WebProgressBar.IsIndeterminate = true;
+            WebProgressBar.IsIndeterminate = false;
+            WebProgressBar.Value = 20;
 
-            if (args.Uri != null)
+            if (!string.IsNullOrEmpty(url))
             {
-                UrlTextBox.Text = args.Uri.ToString();
+                UrlTextBox.Text = url;
                 if (_tabManager.ActiveTab != null)
                 {
-                    _tabManager.ActiveTab.Url = args.Uri.ToString();
+                    _tabManager.ActiveTab.Url = url;
                 }
-                UpdateBookmarkStar(args.Uri.ToString());
+                UpdateBookmarkStar(url);
             }
         }
 
-        private void BrowserCore_ContentLoading(WebView sender, WebViewContentLoadingEventArgs args)
+        private void GoannaCore_ProgressChanged(double progress)
         {
-            WebProgressBar.IsIndeterminate = false;
-            WebProgressBar.Value = 50;
+            WebProgressBar.Value = Math.Max(10, Math.Min(100, progress * 100));
         }
 
-        private async void BrowserCore_DOMContentLoaded(WebView sender, WebViewDOMContentLoadedEventArgs args)
+        private async void GoannaCore_TitleChanged(string newTitle)
         {
-            WebProgressBar.Value = 85;
-
-            // Nạp Viewport fix & Polyfill cho màn hình Lumia
-            try
+            if (!string.IsNullOrWhiteSpace(newTitle) && _tabManager.ActiveTab != null)
             {
-                string initScript = @"
-                    (function() {
-                        var meta = document.querySelector('meta[name=""viewport""]');
-                        if (!meta) {
-                            meta = document.createElement('meta');
-                            meta.name = 'viewport';
-                            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes';
-                            document.head.appendChild(meta);
-                        }
-                    })();
-                ";
-                await BrowserCore.InvokeScriptAsync("eval", new[] { initScript });
-            }
-            catch { }
-
-            // Cập nhật tiêu đề trang
-            string title = BrowserCore.DocumentTitle;
-            if (!string.IsNullOrWhiteSpace(title) && _tabManager.ActiveTab != null)
-            {
-                _tabManager.ActiveTab.Title = title;
-                if (args.Uri != null)
+                _tabManager.ActiveTab.Title = newTitle;
+                string currentUrl = GoannaCore.CurrentUrl;
+                if (!string.IsNullOrEmpty(currentUrl) && !currentUrl.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
                 {
-                    await HistoryService.AddEntryAsync(_history, title, args.Uri.ToString());
+                    await HistoryService.AddEntryAsync(_history, newTitle, currentUrl);
                 }
             }
         }
 
-        private void BrowserCore_NavigationCompleted(WebView sender, WebViewNavigationCompletedEventArgs args)
+        private void GoannaCore_NavigationCompleted(string url, bool success)
         {
             WebProgressBar.Visibility = Visibility.Collapsed;
-            BackButton.IsEnabled = BrowserCore.CanGoBack;
-            ForwardButton.IsEnabled = BrowserCore.CanGoForward;
+            BackButton.IsEnabled = GoannaCore.CanGoBack;
+            ForwardButton.IsEnabled = GoannaCore.CanGoForward;
 
-            if (!args.IsSuccess)
+            if (!success)
             {
-                ShowErrorState($"Lỗi kết nối mạng ({args.WebErrorStatus}). Vui lòng kiểm tra Wi-Fi / 3G.");
+                ShowErrorState("Lỗi kết nối máy chủ hoặc phản hồi mạng. Vui lòng kiểm tra Wi-Fi / 3G.");
             }
             else
             {
                 ErrorOverlay.Visibility = Visibility.Collapsed;
             }
-        }
-
-        private void BrowserCore_LongRunningScriptDetected(WebView sender, WebViewLongRunningScriptDetectedEventArgs args)
-        {
-            // Không ngắt script để đảm bảo SPA / JS web hiện đại chạy đầy đủ
-            args.StopPageScriptExecution = false;
         }
 
         private void UpdateBookmarkStar(string url)
@@ -304,25 +257,25 @@ namespace FoxM.UwpHost
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            if (BrowserCore != null && BrowserCore.CanGoBack)
+            if (GoannaCore != null && GoannaCore.CanGoBack)
             {
-                BrowserCore.GoBack();
+                GoannaCore.GoBack();
             }
         }
 
         private void ForwardButton_Click(object sender, RoutedEventArgs e)
         {
-            if (BrowserCore != null && BrowserCore.CanGoForward)
+            if (GoannaCore != null && GoannaCore.CanGoForward)
             {
-                BrowserCore.GoForward();
+                GoannaCore.GoForward();
             }
         }
 
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
-            if (BrowserCore != null)
+            if (GoannaCore != null)
             {
-                BrowserCore.Refresh();
+                GoannaCore.Reload();
             }
             else
             {
@@ -330,14 +283,12 @@ namespace FoxM.UwpHost
             }
         }
 
-        private async void ReaderButton_Click(object sender, RoutedEventArgs e)
+        private void ReaderButton_Click(object sender, RoutedEventArgs e)
         {
-            string readerScript = ReaderModeService.GenerateReaderScript(ReaderTheme.AmoledBlack, 16);
-            try
+            if (GoannaCore != null)
             {
-                await BrowserCore.InvokeScriptAsync("eval", new[] { readerScript });
+                GoannaCore.Render();
             }
-            catch { }
         }
 
         private void TabsButton_Click(object sender, RoutedEventArgs e)
@@ -410,6 +361,7 @@ namespace FoxM.UwpHost
 
         private void TrimMemoryNow_Click(object sender, RoutedEventArgs e)
         {
+            GoannaCore.MinimizeMemoryUsage();
             MemoryGuardService.ForceTrimMemory();
             UpdateMemoryDisplay();
         }

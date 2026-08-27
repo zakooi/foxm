@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:FoxM.UwpHost"
     xmlns:services="using:FoxM.UwpHost.Services"
+    xmlns:goanna="using:FoxM.GoannaRuntime"
     Background="#FF121214"
     Loaded="Page_Loaded">
 
@@ -31,7 +32,7 @@
                         <TextBlock Text="🦊" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
                     </Border>
                     <Button x:Name="SslBadgeButton" Content="🔒" Background="Transparent" Foreground="#FF4CAF50" 
-                            FontSize="12" Padding="4,0" Margin="2,0,0,0" ToolTipService.ToolTip="Kết nối bảo mật TLS / Mozilla NSS"/>
+                            FontSize="12" Padding="4,0" Margin="2,0,0,0" ToolTipService.ToolTip="Lõi C++ Goanna / Mozilla NSS TLS 1.3"/>
                 </StackPanel>
 
                 <!-- Omnibox URL Box -->
@@ -63,22 +64,21 @@
         <!-- 2. PROGRESS BAR -->
         <ProgressBar x:Name="WebProgressBar" Grid.Row="1" Height="3" Foreground="#FFD85012" Visibility="Collapsed"/>
 
-        <!-- 3. VIEWPORT CONTAINER (Active Web View Engine) -->
+        <!-- 3. VIEWPORT CONTAINER (Pure Goanna C++ Engine Control) -->
         <Grid x:Name="ViewportContainer" Grid.Row="2" Background="#FF121214">
-            <!-- Native Web View Control -->
-            <WebView x:Name="BrowserCore" 
-                     HorizontalAlignment="Stretch" 
-                     VerticalAlignment="Stretch"
-                     NavigationStarting="BrowserCore_NavigationStarting"
-                     ContentLoading="BrowserCore_ContentLoading"
-                     DOMContentLoaded="BrowserCore_DOMContentLoaded"
-                     NavigationCompleted="BrowserCore_NavigationCompleted"
-                     LongRunningScriptDetected="BrowserCore_LongRunningScriptDetected"/>
+            <!-- Goanna C++ Direct2D 1.2 Hardware SwapChainPanel Control (No WebView) -->
+            <goanna:GoannaView x:Name="GoannaCore" 
+                               HorizontalAlignment="Stretch" 
+                               VerticalAlignment="Stretch"
+                               NavigationStarting="GoannaCore_NavigationStarting"
+                               NavigationCompleted="GoannaCore_NavigationCompleted"
+                               TitleChanged="GoannaCore_TitleChanged"
+                               ProgressChanged="GoannaCore_ProgressChanged"/>
 
             <!-- Màn hình chào ban đầu -->
             <StackPanel x:Name="WelcomeOverlay" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" Visibility="Visible">
-                <TextBlock Text="🦊 FoxM Browser" FontSize="24" FontWeight="Bold" Foreground="#FFD85012" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                <TextBlock Text="Trình duyệt Goanna / Gecko C++ cho Windows 10 Mobile" TextAlignment="Center" Foreground="#FFAAAAAA" FontSize="13" Margin="0,0,0,16"/>
+                <TextBlock Text="🦊 FoxM Browser v1.1" FontSize="24" FontWeight="Bold" Foreground="#FFD85012" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                <TextBlock Text="Lõi Goanna / Gecko C++ Direct2D Thuần cho Windows 10 Mobile" TextAlignment="Center" Foreground="#FFAAAAAA" FontSize="13" Margin="0,0,0,16"/>
                 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Content="DuckDuckGo" Margin="4" Background="#FF222228" Foreground="White" Click="QuickLink_Click" Tag="https://duckduckgo.com"/>
