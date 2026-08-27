@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ARM, ARM64, x86]
+        platform: [ARM, x86]
 
     steps:
     - name: 1. Checkout Mã nguồn
@@ -79,8 +79,8 @@ jobs:
           $appxFiles = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE "src/FoxM.UwpHost/bin") -Recurse -Filter "*.appx"
         }
         
-        # 3. Ký số bằng SignTool
-        $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Select-Object -First 1).FullName
+        # 3. Ký số bằng SignTool x64/x86 host
+        $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -match "\\x64\\" -or $_.FullName -match "\\x86\\" } | Select-Object -First 1).FullName
         Write-Host "[FoxM Sign] Sử dụng SignTool: $signtool"
         
         foreach ($file in $appxFiles) {
