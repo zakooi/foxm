@@ -5,10 +5,14 @@
 #include <d3d11_2.h>
 #include <dxgi1_3.h>
 #include <windows.ui.xaml.media.dxinterop.h>
+#include <memory>
 
 #include "DocShellBridge.h"
 #include "WidgetUwp.h"
 #include "SpiderMonkeyHost.h"
+#include "D2DRenderContext.h"
+#include "NeckoClient.h"
+#include "GoannaDOMParser.h"
 
 namespace FoxM
 {
@@ -20,8 +24,7 @@ namespace FoxM
         public delegate void ProgressChangedEventHandler(double progress);
 
         /// <summary>
-        /// Control XAML chính bọc nhân Goanna Engine, kế thừa từ SwapChainPanel.
-        /// Cho phép nhúng trực tiếp vào giao diện C# XAML của Windows 10 Mobile.
+        /// Control XAML chính bọc nhân Goanna Engine với Direct2D/DirectWrite Hardware Compositor 60 FPS.
         /// </summary>
         [Windows::Foundation::Metadata::WebHostHidden]
         public ref class GoannaView sealed : public Windows::UI::Xaml::Controls::SwapChainPanel
@@ -42,6 +45,9 @@ namespace FoxM
 
             // Quản lý Bộ nhớ & Thu gom rác
             void MinimizeMemoryUsage();
+
+            // Vẽ lại toàn bộ trang lên SwapChain
+            void Render();
 
             // Properties
             property bool CanGoBack { bool get(); }
@@ -72,7 +78,15 @@ namespace FoxM
 
             DocShellBridge^ m_docShell;
             WidgetUwp^ m_widget;
+            NeckoClient^ m_neckoClient;
+
+            std::unique_ptr<D2DRenderContext> m_renderContext;
+            std::unique_ptr<GoannaDOMParser> m_domParser;
+
             bool m_isJitEnabled;
+            bool m_isPointerDown;
+            float m_lastPointerY;
+            float m_scrollOffset;
         };
     }
 }

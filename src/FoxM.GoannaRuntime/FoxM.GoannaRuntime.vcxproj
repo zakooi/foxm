@@ -119,12 +119,18 @@
     <ClInclude Include="WidgetUwp.h" />
     <ClInclude Include="SpiderMonkeyHost.h" />
     <ClInclude Include="DocShellBridge.h" />
+    <ClInclude Include="D2DRenderContext.h" />
+    <ClInclude Include="NeckoClient.h" />
+    <ClInclude Include="GoannaDOMParser.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GoannaView.cpp" />
     <ClCompile Include="WidgetUwp.cpp" />
     <ClCompile Include="SpiderMonkeyHost.cpp" />
     <ClCompile Include="DocShellBridge.cpp" />
+    <ClCompile Include="D2DRenderContext.cpp" />
+    <ClCompile Include="NeckoClient.cpp" />
+    <ClCompile Include="GoannaDOMParser.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
