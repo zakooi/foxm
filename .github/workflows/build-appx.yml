@@ -37,19 +37,19 @@ jobs:
       run: |
         .\scripts\generate-assets.ps1
 
-    - name: 4. Khôi phục Gói NuGet (UWP SDK & Runtimes)
+    - name: 4. Khôi phục Gói NuGet
       shell: pwsh
       run: |
-        nuget restore src/FoxM.UwpHost/FoxM.UwpHost.csproj -PackagesDirectory packages
+        nuget restore FoxM.sln
 
-    - name: 5. Biên dịch & Đóng gói Gói .appx cho Windows 10 Mobile
+    - name: 5. Biên dịch & Đóng gói Solution FoxM cho Windows 10 Mobile
       shell: pwsh
       run: |
         $config = "${{ github.event.inputs.build_configuration }}"
         if (-not $config) { $config = "Release" }
         $outDir = Join-Path $env:GITHUB_WORKSPACE "AppxPackages_${{ matrix.platform }}"
         
-        msbuild src/FoxM.UwpHost/FoxM.UwpHost.csproj `
+        msbuild FoxM.sln `
           /p:Configuration=$config `
           /p:Platform=${{ matrix.platform }} `
           /p:AppxBundle=Never `
@@ -66,14 +66,14 @@ jobs:
         $cerPath = Join-Path $outDir "FoxM_Certificate.cer"
         $password = "FoxM2026Password!"
         
-        # 1. Tạo chứng chỉ PFX & CER cho Publisher CN=FoxMDev
+        # 1. Tạo chứng chỉ PFX & CER thời hạn 5 năm cho Publisher CN=FoxMDev
         .\scripts\generate-cert.ps1 -CertPath $pfxPath -Password $password
         
         # Xuất file CER để người dùng cài vào điện thoại Lumia
         $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfxPath, $password)
         [System.IO.File]::WriteAllBytes($cerPath, $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
         
-        # 2. Tìm chỉ riêng file FoxM*.appx (không ký lại các gói Microsoft framework dependencies đã có sẵn chữ ký)
+        # 2. Tìm chỉ riêng file FoxM*.appx
         $appxFiles = Get-ChildItem -Path $outDir -Recurse -Filter "FoxM*.appx"
         if ($appxFiles.Count -eq 0) {
           $appxFiles = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE "src/FoxM.UwpHost/bin") -Recurse -Filter "FoxM*.appx"

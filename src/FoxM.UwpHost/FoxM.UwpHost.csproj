@@ -130,6 +130,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FoxM.GoannaRuntime\FoxM.GoannaRuntime.vcxproj">
+      <Project>{C8451873-45AE-4F58-9A75-74A7C93C3852}</Project>
+      <Name>FoxM.GoannaRuntime</Name>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
       <Version>6.2.14</Version>
     </PackageReference>

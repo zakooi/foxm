@@ -6,10 +6,15 @@
 #include <dxgi1_3.h>
 #include <windows.ui.xaml.media.dxinterop.h>
 
+#include "DocShellBridge.h"
+#include "WidgetUwp.h"
+#include "SpiderMonkeyHost.h"
+
 namespace FoxM
 {
     namespace GoannaRuntime
     {
+        public delegate void NavigationStartingEventHandler(Platform::String^ url);
         public delegate void NavigationCompletedEventHandler(Platform::String^ url, bool success);
         public delegate void TitleChangedEventHandler(Platform::String^ newTitle);
         public delegate void ProgressChangedEventHandler(double progress);
@@ -29,7 +34,7 @@ namespace FoxM
             void Navigate(Platform::String^ url);
             void GoBack();
             void GoForward();
-            void Refresh();
+            void Reload();
             void Stop();
 
             // JavaScript Interop
@@ -46,6 +51,7 @@ namespace FoxM
             property bool IsJitEnabled { bool get(); }
 
             // Events
+            event NavigationStartingEventHandler^ NavigationStarting;
             event NavigationCompletedEventHandler^ NavigationCompleted;
             event TitleChangedEventHandler^ TitleChanged;
             event ProgressChangedEventHandler^ ProgressChanged;
@@ -64,10 +70,8 @@ namespace FoxM
             Microsoft::WRL::ComPtr<IDXGISwapChain1> m_swapChain;
             Microsoft::WRL::ComPtr<ISwapChainPanelNative> m_panelNative;
 
-            Platform::String^ m_currentUrl;
-            Platform::String^ m_documentTitle;
-            bool m_canGoBack;
-            bool m_canGoForward;
+            DocShellBridge^ m_docShell;
+            WidgetUwp^ m_widget;
             bool m_isJitEnabled;
         };
     }

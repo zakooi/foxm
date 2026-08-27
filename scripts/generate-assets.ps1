@@ -3,6 +3,10 @@
     Tạo các file hình ảnh biểu tượng placeholder (PNG) chuẩn cho FoxM UWP trên Windows 10 Mobile.
 #>
 
+param(
+    [switch]$Force = $false
+)
+
 $assetsDir = "$PSScriptRoot\..\src\FoxM.UwpHost\Assets"
 if (-not (Test-Path $assetsDir)) {
     New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
@@ -11,6 +15,11 @@ if (-not (Test-Path $assetsDir)) {
 Add-Type -AssemblyName System.Drawing
 
 function Create-Png($path, $width, $height, $bgHex, $text) {
+    if ((Test-Path $path) -and -not $Force) {
+        Write-Host "[FoxM Assets] File đã tồn tại, giữ nguyên: $path" -ForegroundColor Gray
+        return
+    }
+
     $bmp = New-Object System.Drawing.Bitmap($width, $height)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -33,7 +42,7 @@ function Create-Png($path, $width, $height, $bgHex, $text) {
     $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
     $g.Dispose()
     $bmp.Dispose()
-    Write-Host "Generated: $path ($width x $height)" -ForegroundColor Green
+    Write-Host "[FoxM Assets] Đã tạo mới: $path ($width x $height)" -ForegroundColor Green
 }
 
 Create-Png "$assetsDir\Square150x150Logo.png" 150 150 "#FFD85012" "🦊 FoxM"
@@ -41,4 +50,4 @@ Create-Png "$assetsDir\Square44x44Logo.png" 44 44 "#FFD85012" "🦊"
 Create-Png "$assetsDir\StoreLogo.png" 50 50 "#FFD85012" "🦊"
 Create-Png "$assetsDir\SplashScreen.png" 620 300 "#FF18181C" "🦊 FoxM Browser for Windows 10 Mobile"
 
-Write-Host "All assets generated successfully!" -ForegroundColor Cyan
+Write-Host "[FoxM Assets] Hoàn tất kiểm tra assets!" -ForegroundColor Cyan

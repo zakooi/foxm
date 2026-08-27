@@ -44,8 +44,8 @@ namespace FoxM.UwpHost.Services
 (function() {{
     try {{
         var article = document.querySelector('article') || document.querySelector('.post-content') || document.querySelector('.article-body') || document.body;
-        var title = document.title || '';
-        var content = article.innerHTML;
+        var title = document.title ? document.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+        var content = article ? article.innerHTML : '';
 
         var readerOverlay = document.getElementById('foxm-reader-container');
         if (!readerOverlay) {{
@@ -72,7 +72,7 @@ namespace FoxM.UwpHost.Services
         readerOverlay.innerHTML = '<div style=""max-width: 680px; margin: 0 auto;"">' +
             '<h1 style=""font-size: 1.4em; font-weight: bold; margin-bottom: 16px;"">' + title + '</h1>' +
             '<div style=""opacity: 0.9;"">' + content + '</div>' +
-            '<div style=""margin-top: 40px; text-align: center;""><button onclick=""document.getElementById(\'foxm-reader-container\').remove()"" style=""padding: 8px 16px; background: #FFD85012; color: white; border: none; border-radius: 4px; font-weight: bold;"">Đóng Chế độ đọc</button></div>' +
+            '<div style=""margin-top: 40px; text-align: center;""><button onclick=""document.getElementById(\'foxm-reader-container\').remove()"" style=""padding: 8px 16px; background: #D85012; color: white; border: none; border-radius: 4px; font-weight: bold;"">Đóng Chế độ đọc</button></div>' +
             '</div>';
     }} catch(e) {{
         console.error('FoxM Reader Mode error:', e);

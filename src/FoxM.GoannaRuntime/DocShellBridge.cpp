@@ -31,11 +31,8 @@ void DocShellBridge::LoadUri(Platform::String^ uri)
     m_historyTitles.push_back(L"Loading...");
     m_currentHistoryIndex = static_cast<int>(m_historyUrls.size()) - 1;
 
-    // Mô phỏng tiến trình tải trang Necko
     m_state = NavigationState::Loading;
     m_progress = 0.5;
-    m_progress = 1.0;
-    m_state = NavigationState::Completed;
 }
 
 void DocShellBridge::GoBack()
@@ -45,6 +42,8 @@ void DocShellBridge::GoBack()
         m_currentHistoryIndex--;
         m_currentUri = ref new String(m_historyUrls[m_currentHistoryIndex].c_str());
         m_documentTitle = ref new String(m_historyTitles[m_currentHistoryIndex].c_str());
+        m_state = NavigationState::Loading;
+        m_progress = 0.5;
     }
 }
 
@@ -55,6 +54,8 @@ void DocShellBridge::GoForward()
         m_currentHistoryIndex++;
         m_currentUri = ref new String(m_historyUrls[m_currentHistoryIndex].c_str());
         m_documentTitle = ref new String(m_historyTitles[m_currentHistoryIndex].c_str());
+        m_state = NavigationState::Loading;
+        m_progress = 0.5;
     }
 }
 
@@ -62,7 +63,12 @@ void DocShellBridge::Reload(bool bypassCache)
 {
     if (m_currentHistoryIndex >= 0 && m_currentHistoryIndex < static_cast<int>(m_historyUrls.size()))
     {
-        LoadUri(ref new String(m_historyUrls[m_currentHistoryIndex].c_str()));
+        // Reload lại trang hiện tại mà không push thêm entry trùng lặp vào history
+        m_currentUri = ref new String(m_historyUrls[m_currentHistoryIndex].c_str());
+        m_state = NavigationState::Connecting;
+        m_progress = 0.1;
+        m_state = NavigationState::Loading;
+        m_progress = 0.5;
     }
 }
 
@@ -95,7 +101,7 @@ void DocShellBridge::OnNavigationStart(const std::wstring& uri)
 void DocShellBridge::OnNavigationComplete(bool success)
 {
     m_state = success ? NavigationState::Completed : NavigationState::Failed;
-    m_progress = 1.0;
+    m_progress = success ? 1.0 : 0.0;
 }
 
 NavigationState DocShellBridge::State::get() { return m_state; }

@@ -4,49 +4,50 @@
 
 using namespace FoxM::GoannaRuntime;
 
-int WidgetUwp::s_viewportWidth = 480;
-int WidgetUwp::s_viewportHeight = 800;
-float WidgetUwp::s_dpiScale = 1.0f;
-float WidgetUwp::s_currentZoom = 1.0f;
-float WidgetUwp::s_lastTouchX = 0.0f;
-float WidgetUwp::s_lastTouchY = 0.0f;
-bool WidgetUwp::s_isPointerDown = false;
-
-void WidgetUwp::InitializeWidget(int width, int height, float dpiScale)
+WidgetUwp::WidgetUwp() :
+    m_viewportWidth(480),
+    m_viewportHeight(800),
+    m_dpiScale(1.0f),
+    m_currentZoom(1.0f),
+    m_lastTouchX(0.0f),
+    m_lastTouchY(0.0f),
+    m_isPointerDown(false)
 {
-    s_viewportWidth = width > 0 ? width : 480;
-    s_viewportHeight = height > 0 ? height : 800;
-    s_dpiScale = dpiScale > 0.0f ? dpiScale : 1.0f;
 }
 
-void WidgetUwp::DispatchTouchEvent(int eventType, float x, float y)
+void WidgetUwp::Initialize(int width, int height, float dpiScale)
 {
-    float scaledX = x * s_dpiScale;
-    float scaledY = y * s_dpiScale;
+    m_viewportWidth = width > 0 ? width : 480;
+    m_viewportHeight = height > 0 ? height : 800;
+    m_dpiScale = dpiScale > 0.0f ? dpiScale : 1.0f;
+}
 
-    switch (static_cast<TouchEventType>(eventType))
+void WidgetUwp::DispatchTouchEvent(TouchEventType eventType, float x, float y)
+{
+    float scaledX = x * m_dpiScale;
+    float scaledY = y * m_dpiScale;
+
+    switch (eventType)
     {
     case TouchEventType::Pressed:
-        s_isPointerDown = true;
-        s_lastTouchX = scaledX;
-        s_lastTouchY = scaledY;
-        // Gửi WidgetGUIEvent (eMouseDown / eTouchStart) vào Gecko Event Queue
+        m_isPointerDown = true;
+        m_lastTouchX = scaledX;
+        m_lastTouchY = scaledY;
         break;
 
     case TouchEventType::Moved:
-        if (s_isPointerDown)
+        if (m_isPointerDown)
         {
-            float deltaX = scaledX - s_lastTouchX;
-            float deltaY = scaledY - s_lastTouchY;
-            // Tính toán cuộn quán tính (Kinetic Pan & Scroll)
-            s_lastTouchX = scaledX;
-            s_lastTouchY = scaledY;
+            m_lastTouchX = scaledX;
+            m_lastTouchY = scaledY;
         }
         break;
 
     case TouchEventType::Released:
-        s_isPointerDown = false;
-        // Gửi WidgetGUIEvent (eMouseUp / eTouchEnd)
+        m_isPointerDown = false;
+        break;
+
+    default:
         break;
     }
 }
@@ -54,33 +55,26 @@ void WidgetUwp::DispatchTouchEvent(int eventType, float x, float y)
 void WidgetUwp::DispatchWheelEvent(float deltaX, float deltaY, float x, float y)
 {
     // Chuyển đổi Wheel Delta sang Pan scroll cho Layout Engine
+    (void)deltaX;
+    (void)deltaY;
+    (void)x;
+    (void)y;
 }
 
 void WidgetUwp::DispatchKeyEvent(int keyCode, bool isKeyDown)
 {
     // Gửi WidgetKeyboardEvent vào Gecko Window focus
+    (void)keyCode;
+    (void)isKeyDown;
 }
 
 void WidgetUwp::OnViewportResized(int width, int height)
 {
-    s_viewportWidth = width;
-    s_viewportHeight = height;
+    m_viewportWidth = width;
+    m_viewportHeight = height;
 }
 
 void WidgetUwp::OnDpiChanged(float newDpiScale)
 {
-    s_dpiScale = newDpiScale;
-}
-
-float WidgetUwp::GetCurrentZoomLevel()
-{
-    return s_currentZoom;
-}
-
-void WidgetUwp::SetZoomLevel(float zoom)
-{
-    if (zoom >= 0.25f && zoom <= 5.0f)
-    {
-        s_currentZoom = zoom;
-    }
+    m_dpiScale = newDpiScale;
 }

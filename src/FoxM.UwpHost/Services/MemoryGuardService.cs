@@ -16,11 +16,14 @@ namespace FoxM.UwpHost.Services
 
     /// <summary>
     /// Giám sát và bảo vệ bộ nhớ RAM thời gian thực cho các thiết bị Lumia (512MB / 1GB RAM).
-    /// Tự động kích hoạt dọn rác SpiderMonkey GC khi vượt ngưỡng 75%.
+    /// Tự động kích hoạt dọn rác SpiderMonkey GC khi vượt ngưỡng 75% với cơ chế Cooldown 30s tránh nghẽn CPU.
     /// </summary>
     public static class MemoryGuardService
     {
         public static event EventHandler<MemoryStatusEventArgs> MemoryPressureDetected;
+
+        private static DateTime s_lastTrimTime = DateTime.MinValue;
+        private static readonly TimeSpan TrimCooldown = TimeSpan.FromSeconds(30);
 
         public static MemoryStatusEventArgs GetCurrentMemoryReport()
         {
@@ -40,7 +43,9 @@ namespace FoxM.UwpHost.Services
 
         public static void ForceTrimMemory()
         {
-            // 1. Dọn rác .NET Managed GC (UWP compatible)
+            s_lastTrimTime = DateTime.UtcNow;
+
+            // 1. Dọn rác .NET Managed GC
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
@@ -51,10 +56,14 @@ namespace FoxM.UwpHost.Services
         public static void CheckAndEnforceMemorySafety()
         {
             var report = GetCurrentMemoryReport();
-            if (report.Level == AppMemoryUsageLevel.High || report.UsagePercentage > 75.0)
+            if (report.Level == AppMemoryUsageLevel.High || report.Level == AppMemoryUsageLevel.OverLimit || report.UsagePercentage > 75.0)
             {
-                ForceTrimMemory();
-                MemoryPressureDetected?.Invoke(null, report);
+                // Chỉ kích hoạt nếu đã hết thời gian Cooldown
+                if (DateTime.UtcNow - s_lastTrimTime >= TrimCooldown)
+                {
+                    ForceTrimMemory();
+                    MemoryPressureDetected?.Invoke(null, report);
+                }
             }
         }
     }

@@ -5,6 +5,7 @@ using Windows.System;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
+using FoxM.UwpHost.Services;
 
 namespace FoxM.UwpHost
 {
@@ -14,6 +15,7 @@ namespace FoxM.UwpHost
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+            this.Resuming += OnResuming;
 
             // Đăng ký giám sát bộ nhớ hệ thống Windows 10 Mobile
             MemoryManager.AppMemoryUsageLimitChanging += MemoryManager_AppMemoryUsageLimitChanging;
@@ -25,8 +27,8 @@ namespace FoxM.UwpHost
             if (MemoryManager.AppMemoryUsageLevel == AppMemoryUsageLevel.High ||
                 MemoryManager.AppMemoryUsageLevel == AppMemoryUsageLevel.OverLimit)
             {
-                // Kích hoạt dọn rác SpiderMonkey
-                System.Diagnostics.Debug.WriteLine("[FoxM Memory Guard] RAM Usage High! Triggering GC.");
+                // Kích hoạt dọn rác SpiderMonkey & .NET GC
+                MemoryGuardService.ForceTrimMemory();
             }
         }
 
@@ -34,7 +36,7 @@ namespace FoxM.UwpHost
         {
             if (MemoryManager.AppMemoryUsageLevel == AppMemoryUsageLevel.OverLimit)
             {
-                System.Diagnostics.Debug.WriteLine("[FoxM Memory Guard] CRITICAL: OverLimit memory detected!");
+                MemoryGuardService.ForceTrimMemory();
             }
         }
 
@@ -67,7 +69,20 @@ namespace FoxM.UwpHost
         private void OnSuspending(object sender, SuspendingEventArgs e)
         {
             var deferral = e.SuspendingOperation.GetDeferral();
-            deferral.Complete();
+            try
+            {
+                // Giải phóng bộ nhớ trước khi vào trạng thái Suspend
+                MemoryGuardService.ForceTrimMemory();
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+
+        private void OnResuming(object sender, object e)
+        {
+            System.Diagnostics.Debug.WriteLine("[FoxM Lifecycle] App Resumed.");
         }
     }
 }

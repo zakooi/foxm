@@ -1,6 +1,5 @@
 #include "GoannaView.h"
-#include "SpiderMonkeyHost.h"
-#include "WidgetUwp.h"
+#include <windows.h>
 
 using namespace FoxM::GoannaRuntime;
 using namespace Platform;
@@ -8,12 +7,11 @@ using namespace Windows::UI::Xaml;
 using namespace Windows::UI::Xaml::Input;
 
 GoannaView::GoannaView() :
-    m_canGoBack(false),
-    m_canGoForward(false),
-    m_isJitEnabled(false),
-    m_currentUrl(L"about:blank"),
-    m_documentTitle(L"FoxM Browser")
+    m_isJitEnabled(false)
 {
+    m_docShell = ref new DocShellBridge();
+    m_widget = ref new WidgetUwp();
+
     // Đăng ký sự kiện Touch & Gesture
     this->PointerPressed += ref new PointerEventHandler(this, &GoannaView::OnPointerPressed);
     this->PointerMoved += ref new PointerEventHandler(this, &GoannaView::OnPointerMoved);
@@ -21,12 +19,12 @@ GoannaView::GoannaView() :
     this->SizeChanged += ref new SizeChangedEventHandler(this, &GoannaView::OnSizeChanged);
 
     InitializeDirectX();
-    m_isJitEnabled = SpiderMonkeyHost::InitializeEngine();
+    m_isJitEnabled = SpiderMonkeyHost::AcquireEngine();
 }
 
 GoannaView::~GoannaView()
 {
-    SpiderMonkeyHost::ShutdownEngine();
+    SpiderMonkeyHost::ReleaseEngine();
 }
 
 void GoannaView::InitializeDirectX()
@@ -37,25 +35,52 @@ void GoannaView::InitializeDirectX()
 
 void GoannaView::CreateDeviceResources()
 {
-    UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#if defined(_DEBUG)
-    creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
     D3D_FEATURE_LEVEL featureLevels[] =
     {
         D3D_FEATURE_LEVEL_11_1,
         D3D_FEATURE_LEVEL_11_0,
         D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-        D3D_FEATURE_LEVEL_9_3
+        D3D_FEATURE_LEVEL_10_0
     };
 
     Microsoft::WRL::ComPtr<ID3D11Device> device;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
     D3D_FEATURE_LEVEL featureLevel;
 
-    D3D11CreateDevice(
+    UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#if defined(_DEBUG)
+    // Thử tạo device với Debug Layer trước
+    HRESULT hr = D3D11CreateDevice(
+        nullptr,
+        D3D_DRIVER_TYPE_HARDWARE,
+        0,
+        creationFlags | D3D11_CREATE_DEVICE_DEBUG,
+        featureLevels,
+        ARRAYSIZE(featureLevels),
+        D3D11_SDK_VERSION,
+        &device,
+        &featureLevel,
+        &context
+    );
+
+    // Nếu máy không cài SDK Debug Layer (DXGI_ERROR_SDK_COMPONENT_MISSING), fallback tạo không debug flag
+    if (FAILED(hr))
+    {
+        hr = D3D11CreateDevice(
+            nullptr,
+            D3D_DRIVER_TYPE_HARDWARE,
+            0,
+            creationFlags,
+            featureLevels,
+            ARRAYSIZE(featureLevels),
+            D3D11_SDK_VERSION,
+            &device,
+            &featureLevel,
+            &context
+        );
+    }
+#else
+    HRESULT hr = D3D11CreateDevice(
         nullptr,
         D3D_DRIVER_TYPE_HARDWARE,
         0,
@@ -67,18 +92,46 @@ void GoannaView::CreateDeviceResources()
         &featureLevel,
         &context
     );
+#endif
 
-    device.As(&m_d3dDevice);
-    context.As(&m_d3dContext);
+    if (SUCCEEDED(hr) && device && context)
+    {
+        device.As(&m_d3dDevice);
+        context.As(&m_d3dContext);
+    }
 }
 
 void GoannaView::CreateSizeDependentResources()
 {
     if (!m_d3dDevice) return;
 
+    UINT width = static_cast<UINT>(this->ActualWidth > 0 ? this->ActualWidth : 480);
+    UINT height = static_cast<UINT>(this->ActualHeight > 0 ? this->ActualHeight : 800);
+
+    // Nếu SwapChain đã tồn tại, dùng ResizeBuffers để tránh rò rỉ bộ nhớ
+    if (m_swapChain)
+    {
+        HRESULT hr = m_swapChain->ResizeBuffers(
+            2,
+            width,
+            height,
+            DXGI_FORMAT_B8G8R8A8_UNORM,
+            0
+        );
+
+        if (SUCCEEDED(hr))
+        {
+            m_widget->OnViewportResized(width, height);
+            return;
+        }
+
+        // Nếu Resize thất bại do device removed/reset, giải phóng để tạo mới
+        m_swapChain = nullptr;
+    }
+
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = { 0 };
-    swapChainDesc.Width = static_cast<UINT>(this->ActualWidth > 0 ? this->ActualWidth : 480);
-    swapChainDesc.Height = static_cast<UINT>(this->ActualHeight > 0 ? this->ActualHeight : 800);
+    swapChainDesc.Width = width;
+    swapChainDesc.Height = height;
     swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     swapChainDesc.Stereo = false;
     swapChainDesc.SampleDesc.Count = 1;
@@ -89,62 +142,88 @@ void GoannaView::CreateSizeDependentResources()
     swapChainDesc.Flags = 0;
 
     Microsoft::WRL::ComPtr<IDXGIDevice3> dxgiDevice;
-    m_d3dDevice.As(&dxgiDevice);
+    if (FAILED(m_d3dDevice.As(&dxgiDevice)) || !dxgiDevice) return;
 
     Microsoft::WRL::ComPtr<IDXGIAdapter> dxgiAdapter;
-    dxgiDevice->GetAdapter(&dxgiAdapter);
+    if (FAILED(dxgiDevice->GetAdapter(&dxgiAdapter)) || !dxgiAdapter) return;
 
     Microsoft::WRL::ComPtr<IDXGIFactory2> dxgiFactory;
-    dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
+    if (FAILED(dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory))) || !dxgiFactory) return;
 
-    dxgiFactory->CreateSwapChainForComposition(
+    HRESULT hr = dxgiFactory->CreateSwapChainForComposition(
         m_d3dDevice.Get(),
         &swapChainDesc,
         nullptr,
         &m_swapChain
     );
 
-    // Gắn SwapChain vào XAML SwapChainPanel thông qua ISwapChainPanelNative
-    reinterpret_cast<IUnknown*>(this)->QueryInterface(IID_PPV_ARGS(&m_panelNative));
-    if (m_panelNative && m_swapChain)
+    if (SUCCEEDED(hr) && m_swapChain)
     {
-        m_panelNative->SetSwapChain(m_swapChain.Get());
+        // Gắn SwapChain vào XAML SwapChainPanel thông qua ISwapChainPanelNative
+        reinterpret_cast<IUnknown*>(this)->QueryInterface(IID_PPV_ARGS(&m_panelNative));
+        if (m_panelNative)
+        {
+            m_panelNative->SetSwapChain(m_swapChain.Get());
+        }
+        m_widget->OnViewportResized(width, height);
     }
 }
 
 void GoannaView::Navigate(Platform::String^ url)
 {
-    m_currentUrl = url;
-    ProgressChanged(0.1);
-    // Gửi yêu cầu nạp URI vào Necko / Goanna DocShell
+    if (url == nullptr || url->IsEmpty()) return;
+
+    NavigationStarting(url);
+    ProgressChanged(0.2);
+
+    m_docShell->LoadUri(url);
+
+    ProgressChanged(0.6);
+    TitleChanged(m_docShell->DocumentTitle);
+
     ProgressChanged(1.0);
-    NavigationCompleted(m_currentUrl, true);
+    NavigationCompleted(url, true);
 }
 
 void GoannaView::GoBack()
 {
-    if (m_canGoBack)
+    if (m_docShell->CanGoBack)
     {
-        // Điều hướng ngược lịch sử DocShell
+        m_docShell->GoBack();
+        NavigationStarting(m_docShell->CurrentUri);
+        ProgressChanged(0.5);
+        TitleChanged(m_docShell->DocumentTitle);
+        ProgressChanged(1.0);
+        NavigationCompleted(m_docShell->CurrentUri, true);
     }
 }
 
 void GoannaView::GoForward()
 {
-    if (m_canGoForward)
+    if (m_docShell->CanGoForward)
     {
-        // Điều hướng tiến lịch sử DocShell
+        m_docShell->GoForward();
+        NavigationStarting(m_docShell->CurrentUri);
+        ProgressChanged(0.5);
+        TitleChanged(m_docShell->DocumentTitle);
+        ProgressChanged(1.0);
+        NavigationCompleted(m_docShell->CurrentUri, true);
     }
 }
 
-void GoannaView::Refresh()
+void GoannaView::Reload()
 {
-    Navigate(m_currentUrl);
+    m_docShell->Reload(false);
+    NavigationStarting(m_docShell->CurrentUri);
+    ProgressChanged(0.3);
+    ProgressChanged(1.0);
+    NavigationCompleted(m_docShell->CurrentUri, true);
 }
 
 void GoannaView::Stop()
 {
-    // Dừng tiến trình tải kênh Necko
+    m_docShell->StopLoading();
+    ProgressChanged(0.0);
 }
 
 void GoannaView::ExecuteScriptAsync(Platform::String^ script)
@@ -160,19 +239,19 @@ void GoannaView::MinimizeMemoryUsage()
 void GoannaView::OnPointerPressed(Platform::Object^ sender, PointerRoutedEventArgs^ e)
 {
     auto point = e->GetCurrentPoint(this);
-    WidgetUwp::DispatchTouchEvent(0 /* Pressed */, point->Position.X, point->Position.Y);
+    m_widget->DispatchTouchEvent(TouchEventType::Pressed, point->Position.X, point->Position.Y);
 }
 
 void GoannaView::OnPointerMoved(Platform::Object^ sender, PointerRoutedEventArgs^ e)
 {
     auto point = e->GetCurrentPoint(this);
-    WidgetUwp::DispatchTouchEvent(1 /* Moved */, point->Position.X, point->Position.Y);
+    m_widget->DispatchTouchEvent(TouchEventType::Moved, point->Position.X, point->Position.Y);
 }
 
 void GoannaView::OnPointerReleased(Platform::Object^ sender, PointerRoutedEventArgs^ e)
 {
     auto point = e->GetCurrentPoint(this);
-    WidgetUwp::DispatchTouchEvent(2 /* Released */, point->Position.X, point->Position.Y);
+    m_widget->DispatchTouchEvent(TouchEventType::Released, point->Position.X, point->Position.Y);
 }
 
 void GoannaView::OnSizeChanged(Platform::Object^ sender, SizeChangedEventArgs^ e)
@@ -180,8 +259,8 @@ void GoannaView::OnSizeChanged(Platform::Object^ sender, SizeChangedEventArgs^ e
     CreateSizeDependentResources();
 }
 
-bool GoannaView::CanGoBack::get() { return m_canGoBack; }
-bool GoannaView::CanGoForward::get() { return m_canGoForward; }
-Platform::String^ GoannaView::CurrentUrl::get() { return m_currentUrl; }
-Platform::String^ GoannaView::DocumentTitle::get() { return m_documentTitle; }
+bool GoannaView::CanGoBack::get() { return m_docShell ? m_docShell->CanGoBack : false; }
+bool GoannaView::CanGoForward::get() { return m_docShell ? m_docShell->CanGoForward : false; }
+Platform::String^ GoannaView::CurrentUrl::get() { return m_docShell ? m_docShell->CurrentUri : L"about:blank"; }
+Platform::String^ GoannaView::DocumentTitle::get() { return m_docShell ? m_docShell->DocumentTitle : L"FoxM Browser"; }
 bool GoannaView::IsJitEnabled::get() { return m_isJitEnabled; }

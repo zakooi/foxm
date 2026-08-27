@@ -4,7 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:FoxM.UwpHost"
     xmlns:services="using:FoxM.UwpHost.Services"
-    Background="#FF121214">
+    xmlns:runtime="using:FoxM.GoannaRuntime"
+    Background="#FF121214"
+    Loaded="Page_Loaded">
 
     <Grid>
         <!-- Layout Chính 4 Dòng: Header -> Progress -> Viewport -> Bottom Bar -->
@@ -64,11 +66,14 @@
 
         <!-- 3. VIEWPORT CONTAINER (Native Goanna SwapChain / Web View) -->
         <Grid x:Name="ViewportContainer" Grid.Row="2" Background="#FF000000">
-            <!-- Thông báo trạng thái Engine khi tải trang -->
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
+            <!-- Native Goanna SwapChainPanel C++/CX Engine -->
+            <runtime:GoannaView x:Name="GoannaEngineView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+
+            <!-- Thông báo overlay khi cần -->
+            <StackPanel x:Name="EngineSplashOverlay" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" IsHitTestVisible="False" Visibility="Collapsed">
                 <TextBlock Text="🦊 FoxM Browser" FontSize="20" FontWeight="Bold" Foreground="#FFD85012" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                 <TextBlock x:Name="EngineStatusText" 
-                           Text="Engine: Goanna C++ Core | D3D11 Compositor | TLS 1.3 (NSS Active)&#x0a;JIT Status: CodeGeneration Capability Active" 
+                           Text="Engine: Goanna C++ Core | D3D11 Compositor | TLS 1.3" 
                            TextAlignment="Center" Foreground="#FF888888" FontSize="12" LineHeight="18"/>
             </StackPanel>
         </Grid>

@@ -58,23 +58,30 @@ foxm/
 ├── docs/                               Tài liệu kiến trúc & can thiệp hệ thống
 │   ├── ARCHITECTURE.md                 Thiết kế kiến trúc chi tiết của FoxM
 │   ├── W10M_LIMITATIONS_AND_HACKS.md   Phân tích hạn chế W10M và các giải pháp can thiệp
-│   └── BUILD_GUIDE.md                  Hướng dẫn cấu hình toolchain & build
+│   ├── BUILD_GUIDE.md                  Hướng dẫn cấu hình toolchain & build
+│   └── KIEM_TRA_DU_AN.md              Báo cáo kiểm toán & khắc phục lỗi toàn diện
 ├── config/                             Cấu hình Engine & Biên dịch
 │   ├── mozconfig-uwp-arm32             Cấu hình build Goanna cho ARM32 UWP
 │   ├── mozconfig-uwp-arm64             Cấu hình build Goanna cho ARM64 UWP
 │   └── all-w10m.js                     Cấu hình Preferences tối ưu RAM cho W10M
 ├── src/
 │   ├── FoxM.GoannaRuntime/             WinRT Component bọc nhân Goanna (C++/CX)
+│   │   ├── FoxM.GoannaRuntime.vcxproj  Project C++/CX WinRT Component
 │   │   ├── GoannaView.h / .cpp         Control XAML SwapChainPanel điều phối render
 │   │   ├── WidgetUwp.h / .cpp          Tầng giao tiếp đồ họa & sự kiện cảm ứng
-│   │   └── SpiderMonkeyHost.h / .cpp   Khởi tạo & cấu hình Engine JS
+│   │   ├── SpiderMonkeyHost.h / .cpp   Khởi tạo & cấu hình Engine JS
+│   │   └── DocShellBridge.h / .cpp     Cầu nối lịch sử duyệt & điều hướng
 │   ├── FoxM.UwpHost/                   Ứng dụng Browser mẫu viết bằng C# XAML
+│   │   ├── FoxM.UwpHost.csproj         Project C# XAML UI
 │   │   ├── App.xaml / .cs
 │   │   ├── MainPage.xaml / .cs         Giao diện duyệt đa tab, thanh địa chỉ, RAM meter
+│   │   ├── Services/                   Các dịch vụ hỗ trợ (Bookmark, History, RAM, Reader)
 │   │   └── Package.appxmanifest        Manifest cấu hình quyền đặc quyền
 │   └── FoxM.NssSecurity/
 │       └── update-root-certs.ps1       Script đồng bộ chứng chỉ gốc Mozilla 2026
-├── .github/workflows/ci.yml            GitHub Actions CI kiểm tra build
+├── .github/workflows/
+│   └── build-appx.yml                  GitHub Actions CI build ARM & x86 ra gói .appx
+├── FoxM.sln                            Master Solution kết nối C++/CX và C#
 ├── LICENSE                             Giấy phép Mozilla Public License 2.0
 └── README.md
 ```
@@ -87,6 +94,7 @@ Xem chi tiết trong:
 * 📄 [Tài liệu Kiến trúc Engine (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
 * 📄 [Can thiệp sâu hệ điều hành W10M (W10M_LIMITATIONS_AND_HACKS.md)](docs/W10M_LIMITATIONS_AND_HACKS.md)
 * 📄 [Hướng dẫn Biên dịch (BUILD_GUIDE.md)](docs/BUILD_GUIDE.md)
+* 📄 [Báo cáo Kiểm thử Dự án (KIEM_TRA_DU_AN.md)](docs/KIEM_TRA_DU_AN.md)
 
 ---
 

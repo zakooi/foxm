@@ -4,7 +4,7 @@ namespace FoxM
 {
     namespace GoannaRuntime
     {
-        enum class TouchEventType
+        public enum class TouchEventType
         {
             Pressed = 0,
             Moved = 1,
@@ -16,27 +16,38 @@ namespace FoxM
         /// Tầng trừu tượng Widget thay thế cho nsWindow Win32 truyền thống.
         /// Chuyển đổi trực tiếp các tương tác Touch, Kinetic Scroll và Pinch-to-Zoom từ XAML sang Goanna Core.
         /// </summary>
-        class WidgetUwp
+        public ref class WidgetUwp sealed
         {
         public:
-            static void InitializeWidget(int width, int height, float dpiScale);
-            static void DispatchTouchEvent(int eventType, float x, float y);
-            static void DispatchWheelEvent(float deltaX, float deltaY, float x, float y);
-            static void DispatchKeyEvent(int keyCode, bool isKeyDown);
-            static void OnViewportResized(int width, int height);
-            static void OnDpiChanged(float newDpiScale);
+            WidgetUwp();
 
-            static float GetCurrentZoomLevel();
-            static void SetZoomLevel(float zoom);
+            void Initialize(int width, int height, float dpiScale);
+            void DispatchTouchEvent(TouchEventType eventType, float x, float y);
+            void DispatchWheelEvent(float deltaX, float deltaY, float x, float y);
+            void DispatchKeyEvent(int keyCode, bool isKeyDown);
+            void OnViewportResized(int width, int height);
+            void OnDpiChanged(float newDpiScale);
+
+            property float ZoomLevel
+            {
+                float get() { return m_currentZoom; }
+                void set(float value)
+                {
+                    if (value >= 0.25f && value <= 5.0f)
+                    {
+                        m_currentZoom = value;
+                    }
+                }
+            }
 
         private:
-            static int s_viewportWidth;
-            static int s_viewportHeight;
-            static float s_dpiScale;
-            static float s_currentZoom;
-            static float s_lastTouchX;
-            static float s_lastTouchY;
-            static bool s_isPointerDown;
+            int m_viewportWidth;
+            int m_viewportHeight;
+            float m_dpiScale;
+            float m_currentZoom;
+            float m_lastTouchX;
+            float m_lastTouchY;
+            bool m_isPointerDown;
         };
     }
 }

@@ -14,14 +14,13 @@ namespace FoxM.UwpHost
         private const string DefaultHomePage = "https://github.com/zakooi/foxm";
 
         private TabManagerService _tabManager = new TabManagerService();
-        private ObservableCollection<BookmarkItem> _bookmarks;
-        private ObservableCollection<HistoryItem> _history;
+        private ObservableCollection<BookmarkItem> _bookmarks = new ObservableCollection<BookmarkItem>();
+        private ObservableCollection<HistoryItem> _history = new ObservableCollection<HistoryItem>();
         private DispatcherTimer _memoryTimer;
 
         public MainPage()
         {
             this.InitializeComponent();
-            this.Loaded += MainPage_Loaded;
 
             _tabManager.ActiveTabChanged += TabManager_ActiveTabChanged;
             _tabManager.TabClosed += TabManager_TabClosed;
@@ -34,9 +33,18 @@ namespace FoxM.UwpHost
             _memoryTimer.Tick += MemoryTimer_Tick;
         }
 
-        private async void MainPage_Loaded(object sender, RoutedEventArgs e)
+        private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
-            // 1. Nạp Bookmarks & Lịch sử
+            // 1. Nối sự kiện từ GoannaEngineView C++/CX
+            if (GoannaEngineView != null)
+            {
+                GoannaEngineView.NavigationStarting += GoannaEngineView_NavigationStarting;
+                GoannaEngineView.NavigationCompleted += GoannaEngineView_NavigationCompleted;
+                GoannaEngineView.ProgressChanged += GoannaEngineView_ProgressChanged;
+                GoannaEngineView.TitleChanged += GoannaEngineView_TitleChanged;
+            }
+
+            // 2. Nạp Bookmarks & Lịch sử
             _bookmarks = await BookmarkService.LoadBookmarksAsync();
             _history = await HistoryService.LoadHistoryAsync();
 
@@ -44,19 +52,55 @@ namespace FoxM.UwpHost
             HistoryListView.ItemsSource = _history;
             TabListView.ItemsSource = _tabManager.Tabs;
 
-            // 2. Mở Tab đầu tiên
+            // 3. Mở Tab đầu tiên
             _tabManager.CreateTab(DefaultHomePage, "GitHub - FoxM");
 
-            // 3. Khởi động giám sát RAM
+            // 4. Khởi động giám sát RAM
             _memoryTimer.Start();
             UpdateMemoryDisplay();
+        }
+
+        private void GoannaEngineView_NavigationStarting(string url)
+        {
+            WebProgressBar.Visibility = Visibility.Visible;
+            WebProgressBar.IsIndeterminate = false;
+            WebProgressBar.Value = 10;
+        }
+
+        private void GoannaEngineView_ProgressChanged(double progress)
+        {
+            WebProgressBar.Value = progress * 100.0;
+            if (progress >= 1.0)
+            {
+                WebProgressBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void GoannaEngineView_TitleChanged(string newTitle)
+        {
+            if (_tabManager.ActiveTab != null && !string.IsNullOrWhiteSpace(newTitle))
+            {
+                _tabManager.ActiveTab.Title = newTitle;
+                await HistoryService.AddEntryAsync(_history, newTitle, _tabManager.ActiveTab.Url);
+            }
+        }
+
+        private void GoannaEngineView_NavigationCompleted(string url, bool success)
+        {
+            WebProgressBar.Visibility = Visibility.Collapsed;
+            if (GoannaEngineView != null)
+            {
+                BackButton.IsEnabled = GoannaEngineView.CanGoBack;
+                ForwardButton.IsEnabled = GoannaEngineView.CanGoForward;
+            }
+            UpdateBookmarkStar(url);
         }
 
         private void TabManager_ActiveTabChanged(object sender, BrowserTab tab)
         {
             if (tab == null) return;
             UrlTextBox.Text = tab.Url;
-            NavigateTo(tab.Url);
+            NavigateTo(tab.Url, isTabSwitch: true);
             UpdateTabCount();
             UpdateBookmarkStar(tab.Url);
         }
@@ -71,7 +115,7 @@ namespace FoxM.UwpHost
             TabsButton.Content = $"🗂️ {_tabManager.Tabs.Count}";
         }
 
-        private async void NavigateTo(string input)
+        private void NavigateTo(string input, bool isTabSwitch = false)
         {
             if (string.IsNullOrWhiteSpace(input)) return;
 
@@ -91,28 +135,23 @@ namespace FoxM.UwpHost
             }
 
             UrlTextBox.Text = target;
-            WebProgressBar.Visibility = Visibility.Visible;
-            WebProgressBar.IsIndeterminate = true;
-
             if (_tabManager.ActiveTab != null)
             {
                 _tabManager.ActiveTab.Url = target;
             }
 
-            // Ghi nhận lịch sử duyệt web
-            await HistoryService.AddEntryAsync(_history, target, target);
             UpdateBookmarkStar(target);
 
-            EngineStatusText.Text = $"🌐 Goanna Engine (C++) Loading: {target}\n" +
-                                   $"• TLS 1.3 / NSS Verified (CertStore 2026)\n" +
-                                   $"• Direct3D 11 Render Target (60 FPS SwapChain)\n" +
-                                   $"• SpiderMonkey JS: Active | JIT Enabled";
-
-            WebProgressBar.Visibility = Visibility.Collapsed;
+            // Điều hướng thực tế thông qua GoannaView C++/CX
+            if (GoannaEngineView != null)
+            {
+                GoannaEngineView.Navigate(target);
+            }
         }
 
         private void UpdateBookmarkStar(string url)
         {
+            if (_bookmarks == null) return;
             bool isBookmarked = BookmarkService.IsBookmarked(_bookmarks, url);
             BookmarkStarButton.Content = isBookmarked ? "★" : "⭐";
         }
@@ -162,7 +201,7 @@ namespace FoxM.UwpHost
         private async void BookmarkStarButton_Click(object sender, RoutedEventArgs e)
         {
             string url = UrlTextBox.Text;
-            if (string.IsNullOrWhiteSpace(url)) return;
+            if (string.IsNullOrWhiteSpace(url) || _bookmarks == null) return;
 
             if (BookmarkService.IsBookmarked(_bookmarks, url))
             {
@@ -171,7 +210,7 @@ namespace FoxM.UwpHost
             }
             else
             {
-                _bookmarks.Insert(0, new BookmarkItem { Title = url, Url = url });
+                _bookmarks.Insert(0, new BookmarkItem { Title = _tabManager.ActiveTab?.Title ?? url, Url = url });
             }
 
             await BookmarkService.SaveBookmarksAsync(_bookmarks);
@@ -180,23 +219,41 @@ namespace FoxM.UwpHost
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            // Điều hướng Goanna Back
+            if (GoannaEngineView != null && GoannaEngineView.CanGoBack)
+            {
+                GoannaEngineView.GoBack();
+                UrlTextBox.Text = GoannaEngineView.CurrentUrl;
+            }
         }
 
         private void ForwardButton_Click(object sender, RoutedEventArgs e)
         {
-            // Điều hướng Goanna Forward
+            if (GoannaEngineView != null && GoannaEngineView.CanGoForward)
+            {
+                GoannaEngineView.GoForward();
+                UrlTextBox.Text = GoannaEngineView.CurrentUrl;
+            }
         }
 
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
-            NavigateTo(UrlTextBox.Text);
+            if (GoannaEngineView != null)
+            {
+                GoannaEngineView.Reload();
+            }
+            else
+            {
+                NavigateTo(UrlTextBox.Text);
+            }
         }
 
         private void ReaderButton_Click(object sender, RoutedEventArgs e)
         {
             string readerScript = ReaderModeService.GenerateReaderScript(ReaderTheme.AmoledBlack, 16);
-            EngineStatusText.Text = "📖 Chế độ đọc (Reader Mode) đã được kích hoạt trên Goanna DOM!";
+            if (GoannaEngineView != null)
+            {
+                GoannaEngineView.ExecuteScriptAsync(readerScript);
+            }
         }
 
         private void TabsButton_Click(object sender, RoutedEventArgs e)
@@ -235,6 +292,7 @@ namespace FoxM.UwpHost
             {
                 TabSwitcherOverlay.Visibility = Visibility.Collapsed;
                 _tabManager.SwitchToTab(tab);
+                TabListView.SelectedItem = null; // Reset selection để lần sau chạm cùng tab vẫn kích hoạt
             }
         }
 
@@ -268,9 +326,12 @@ namespace FoxM.UwpHost
 
         private void TrimMemoryNow_Click(object sender, RoutedEventArgs e)
         {
+            if (GoannaEngineView != null)
+            {
+                GoannaEngineView.MinimizeMemoryUsage();
+            }
             MemoryGuardService.ForceTrimMemory();
             UpdateMemoryDisplay();
-            EngineStatusText.Text = "🧹 SpiderMonkey GC & Direct3D Surfaces Trimmed!";
         }
     }
 }
