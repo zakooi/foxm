@@ -1,0 +1,68 @@
+name: Build FoxM Windows 10 Mobile App (.appx)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_configuration:
+        description: 'Cấu hình Build (Release/Debug)'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Release
+        - Debug
+
+jobs:
+  build-and-package:
+    name: Build UWP (${{ matrix.platform }})
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ARM, ARM64, x86]
+
+    steps:
+    - name: 1. Checkout Mã nguồn
+      uses: actions/checkout@v4
+
+    - name: 2. Cài đặt MSBuild & Windows 10 SDK
+      uses: microsoft/setup-msbuild@v2
+
+    - name: 3. Khởi tạo Hình ảnh Assets Placeholder
+      shell: powershell
+      run: |
+        .\scripts\generate-assets.ps1
+
+    - name: 4. Tạo & Cài đặt Chứng chỉ Ký số Tự ký (.pfx)
+      shell: powershell
+      run: |
+        .\scripts\generate-cert.ps1 -CertPath "$env:GITHUB_WORKSPACE\FoxM_Cert.pfx" -Password "FoxM2026Password!"
+
+    - name: 5. Biên dịch & Đóng gói Gói .appx cho Windows 10 Mobile
+      shell: cmd
+      run: |
+        msbuild src\FoxM.UwpHost\FoxM.UwpHost.csproj ^
+          /p:Configuration=${{ github.event.inputs.build_configuration || 'Release' }} ^
+          /p:Platform=${{ matrix.platform }} ^
+          /p:AppxPackageDir="%GITHUB_WORKSPACE%\AppxPackages\" ^
+          /p:AppxBundle=Never ^
+          /p:UapAppxPackageBuildMode=SideloadOnly ^
+          /p:AppxPackageSigningEnabled=true ^
+          /p:PackageCertificateKeyFile="%GITHUB_WORKSPACE%\FoxM_Cert.pfx" ^
+          /p:PackageCertificatePassword="FoxM2026Password!" ^
+          /p:PackageCertificateThumbprint="" ^
+          /v:minimal
+
+    - name: 6. Tải Gói .appx Lên GitHub Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FoxM-Windows10Mobile-${{ matrix.platform }}
+        path: |
+          AppxPackages\**\*.appx
+          AppxPackages\**\*.cer
+          AppxPackages\**\*.ps1
+        retention-days: 30
