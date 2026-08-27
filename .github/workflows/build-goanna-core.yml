@@ -1,0 +1,81 @@
+name: Build Goanna Core C++ (NSS TLS 1.3 & SpiderMonkey)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: 'Mục tiêu Biên dịch (All / NSS / SpiderMonkey)'
+        required: true
+        default: 'All'
+        type: choice
+        options:
+        - All
+        - NSS_TLS13
+        - SpiderMonkey
+      build_configuration:
+        description: 'Cấu hình Build (Release/Debug)'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Release
+        - Debug
+  push:
+    paths:
+      - 'scripts/build-*.ps1'
+      - '.github/workflows/build-goanna-core.yml'
+      - 'src/FoxM.GoannaRuntime/**'
+
+jobs:
+  build-core-libraries:
+    name: Build Core C++ (${{ matrix.platform }})
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ARM, x86]
+
+    steps:
+    - name: 1. Checkout Mã nguồn
+      uses: actions/checkout@v4
+
+    - name: 2. Thiết lập CMake, Ninja & MSVC Toolchain
+      uses: lukka/get-cmake@latest
+
+    - name: 3. Cài đặt MSBuild & Windows 10 SDK
+      uses: microsoft/setup-msbuild@v2
+
+    - name: 4. Biên dịch Mozilla NSS 2026 TLS 1.3 (UWP ${{ matrix.platform }})
+      if: ${{ github.event.inputs.build_target == 'All' || github.event.inputs.build_target == 'NSS_TLS13' || github.event_name == 'push' }}
+      shell: pwsh
+      run: |
+        $config = "${{ github.event.inputs.build_configuration }}"
+        if (-not $config) { $config = "Release" }
+        .\scripts\build-nss-uwp.ps1 -Platform ${{ matrix.platform }} -Configuration $config
+
+    - name: 5. Biên dịch SpiderMonkey JS Engine (UWP ${{ matrix.platform }})
+      if: ${{ github.event.inputs.build_target == 'All' || github.event.inputs.build_target == 'SpiderMonkey' || github.event_name == 'push' }}
+      shell: pwsh
+      run: |
+        $config = "${{ github.event.inputs.build_configuration }}"
+        if (-not $config) { $config = "Release" }
+        .\scripts\build-spidermonkey-uwp.ps1 -Platform ${{ matrix.platform }} -Configuration $config
+
+    - name: 6. Đóng gói Thư viện Goanna Core C++
+      shell: pwsh
+      run: |
+        $libDir = "src/FoxM.GoannaRuntime/libs/${{ matrix.platform }}"
+        if (-not (Test-Path $libDir)) { New-Item -ItemType Directory -Path $libDir -Force | Out-Null }
+        
+        $outZip = "FoxM-GoannaCore-${{ matrix.platform }}.zip"
+        Compress-Archive -Path "$libDir\*" -DestinationPath $outZip -Force
+        Write-Host "Packaged Goanna Core: $outZip" -ForegroundColor Green
+
+    - name: 7. Tải Thư viện Lên GitHub Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FoxM-GoannaCore-Binaries-${{ matrix.platform }}
+        path: |
+          src/FoxM.GoannaRuntime/libs/${{ matrix.platform }}/**/*.*
+          FoxM-GoannaCore-${{ matrix.platform }}.zip
+        retention-days: 30
