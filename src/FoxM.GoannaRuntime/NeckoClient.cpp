@@ -32,7 +32,7 @@ IAsyncOperationWithProgress<String^, double>^ NeckoClient::FetchPageAsync(String
         filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::WrongUsage);
         filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::RevocationInformationMissing);
         filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::RevocationFailure);
-        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::InvalidCertificateAuthorityRoot);
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::InvalidName);
 
         auto httpClient = ref new HttpClient(filter);
         httpClient->DefaultRequestHeaders->UserAgent->TryParseAdd(ua);
