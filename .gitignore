@@ -1,0 +1,29 @@
+# Visual Studio / MSBuild
+.vs/
+[Dd]ebug/
+[Rr]elease/
+[Aa][Rr][Mm]/
+[Xx]64/
+[Xx]86/
+bld/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.sln.docstates
+
+# Goanna & Mozilla Build Artifacts
+obj-*/
+.mozconfig.mk
+.mozconfig.cache
+config.log
+config.status
+dist/
+_virtualenv/
+
+# OS Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

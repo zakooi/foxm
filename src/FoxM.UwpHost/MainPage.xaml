@@ -1,0 +1,70 @@
+<Page
+    x:Class="FoxM.UwpHost.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:FoxM.UwpHost"
+    Background="{StaticResource FoxMDarkBackground}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- 1. Thanh Omnibox trên cùng -->
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <!-- 2. Khung Viewport Web (Native Goanna SwapChainPanel) -->
+            <RowDefinition Height="*"/>
+            <!-- 3. Thanh điều hướng dưới đáy (Tối ưu màn hình Lumia) -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Header & Omnibox -->
+        <Border Grid.Row="0" Background="#FF202024" Padding="8,6" BorderBrush="#FF333338" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="#FFD85012" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                    <TextBlock Text="🦊 FoxM" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBox x:Name="UrlTextBox" Grid.Column="1" Height="36" FontSize="13" 
+                         PlaceholderText="Nhập địa chỉ web hoặc tìm kiếm..." 
+                         KeyDown="UrlTextBox_KeyDown"
+                         Background="#FF121214" Foreground="#FFF0F0F0" BorderBrush="#FF444448"/>
+
+                <Button x:Name="GoButton" Grid.Column="2" Content="➔" Width="36" Height="36" Margin="6,0,0,0"
+                        Click="GoButton_Click" Background="#FFD85012" Foreground="White" FontWeight="Bold"/>
+            </Grid>
+        </Border>
+
+        <!-- Progress Bar & Status -->
+        <ProgressBar x:Name="WebProgressBar" Grid.Row="1" Height="3" Foreground="#FFD85012" Visibility="Collapsed"/>
+
+        <!-- Viewport Area (Container for Native GoannaView SwapChainPanel) -->
+        <Grid x:Name="ViewportContainer" Grid.Row="2" Background="#FF101012">
+            <TextBlock x:Name="EngineStatusText" Text="🦊 Goanna Engine (C++) Active | D3D11 SwapChain ready" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FF777777" FontSize="12"/>
+        </Grid>
+
+        <!-- Bottom Toolbar (Lumia Thumb-friendly) -->
+        <Border Grid.Row="3" Background="#FF202024" Padding="6,4" BorderBrush="#FF333338" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BackButton" Grid.Column="0" Content="◀" HorizontalAlignment="Stretch" Height="40" Background="Transparent" Foreground="White" Click="BackButton_Click"/>
+                <Button x:Name="ForwardButton" Grid.Column="1" Content="▶" HorizontalAlignment="Stretch" Height="40" Background="Transparent" Foreground="White" Click="ForwardButton_Click"/>
+                <Button x:Name="RefreshButton" Grid.Column="2" Content="🔄" HorizontalAlignment="Stretch" Height="40" Background="Transparent" Foreground="White" Click="RefreshButton_Click"/>
+                <Button x:Name="GcButton" Grid.Column="3" Content="🧹" ToolTipService.ToolTip="Dọn RAM (GC)" HorizontalAlignment="Stretch" Height="40" Background="Transparent" Foreground="White" Click="GcButton_Click"/>
+                <Button x:Name="TabsButton" Grid.Column="4" Content="🗂️" HorizontalAlignment="Stretch" Height="40" Background="Transparent" Foreground="White" Click="TabsButton_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

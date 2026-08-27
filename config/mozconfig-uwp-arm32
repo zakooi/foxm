@@ -1,0 +1,43 @@
+# ==============================================================================
+# FoxM - Goanna Engine Build Configuration for Windows 10 Mobile (ARM32 / UWP)
+# ==============================================================================
+
+# Target Platform
+ac_add_options --target=arm-windows-msvc
+ac_add_options --enable-application=embedding
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-uwp-arm32
+
+# WinRT / UWP Environment
+ac_add_options --enable-winuwp
+ac_add_options --enable-windows-mobile
+ac_add_options --disable-accessibility
+ac_add_options --disable-parental-controls
+ac_add_options --disable-crashreporter
+ac_add_options --disable-updater
+ac_add_options --disable-maintenance-service
+
+# Process Model (Strictly Single-Process for UWP Sandbox)
+ac_add_options --disable-e10s
+ac_add_options --disable-ipc-plugins
+
+# Graphics & DirectX 11
+ac_add_options --enable-d3d11
+ac_add_options --enable-skia
+ac_add_options --disable-gl
+ac_add_options --disable-vulkan
+
+# SpiderMonkey JavaScript Tuning
+ac_add_options --disable-ion
+ac_add_options --enable-baseline-jit
+ac_add_options --enable-js-interpreter
+
+# Media & Codecs (Lightweight profile)
+ac_add_options --disable-ffmpeg
+ac_add_options --disable-wmf
+ac_add_options --enable-webp
+ac_add_options --enable-svg
+
+# Build Optimizations
+ac_add_options --enable-optimize="-O2 -GL -Gy"
+ac_add_options --disable-debug
+ac_add_options --disable-tests

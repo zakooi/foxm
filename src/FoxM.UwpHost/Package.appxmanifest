@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap mp rescap">
+
+  <Identity
+    Name="FoxM.Browser.Windows10Mobile"
+    Publisher="CN=FoxMDev"
+    Version="1.0.0.0"
+    ProcessorArchitecture="arm" />
+
+  <mp:PhoneIdentity PhoneProductId="a8f6d72a-192a-43c2-bf7b-2384a56c3821" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>FoxM Browser</DisplayName>
+    <PublisherDisplayName>FoxM Project</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>FoxM - Modern Goanna/Gecko C++ Web Browser for Windows 10 Mobile</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.14393.0" MaxVersionTested="10.0.19041.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="FoxM.UwpHost.App">
+      <uap:VisualElements
+        DisplayName="FoxM Browser"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png"
+        Description="FoxM Web Browser for Windows 10 Mobile"
+        BackgroundColor="#FFD85012">
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Quyền mạng internet cơ bản -->
+    <Capability Name="internetClient" />
+    <Capability Name="internetClientServer" />
+    <Capability Name="privateNetworkClientServer" />
+
+    <!-- Quyền đặc quyền mở khóa JIT Compiler cho SpiderMonkey trên Developer Mode -->
+    <rescap:Capability Name="codeGeneration" />
+  </Capabilities>
+</Package>

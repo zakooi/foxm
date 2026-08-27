@@ -1,0 +1,33 @@
+# ==============================================================================
+# FoxM - Goanna Engine Build Configuration for Windows 10 Mobile (ARM64 / UWP)
+# ==============================================================================
+
+# Target Platform (Lumia 950 / 950 XL on ARM64)
+ac_add_options --target=aarch64-windows-msvc
+ac_add_options --enable-application=embedding
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-uwp-arm64
+
+# WinRT / UWP Environment
+ac_add_options --enable-winuwp
+ac_add_options --enable-windows-mobile
+ac_add_options --disable-accessibility
+ac_add_options --disable-crashreporter
+ac_add_options --disable-updater
+
+# Process Model (Single-Process for UWP Sandbox)
+ac_add_options --disable-e10s
+ac_add_options --disable-ipc-plugins
+
+# Graphics & DirectX 11
+ac_add_options --enable-d3d11
+ac_add_options --enable-skia
+
+# SpiderMonkey JavaScript
+ac_add_options --enable-baseline-jit
+ac_add_options --enable-ion
+ac_add_options --enable-js-interpreter
+
+# Build Optimizations
+ac_add_options --enable-optimize="-O2 -GL -Gy"
+ac_add_options --disable-debug
+ac_add_options --disable-tests

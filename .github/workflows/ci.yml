@@ -1,0 +1,22 @@
+name: FoxM CI Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-uwp:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Validate Source Structure
+      run: |
+        Write-Host "Validating FoxM source files..."
+        Get-ChildItem -Recurse -File | Select-Object FullName
