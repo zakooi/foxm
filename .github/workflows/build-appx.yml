@@ -58,7 +58,7 @@ jobs:
           /p:AppxPackageDir="$outDir" `
           /m
 
-    - name: 6. Tạo Chứng chỉ & Ký số Gói .appx
+    - name: 6. Tạo Chứng chỉ & Ký số Gói FoxM .appx
       shell: pwsh
       run: |
         $outDir = Join-Path $env:GITHUB_WORKSPACE "AppxPackages_${{ matrix.platform }}"
@@ -66,29 +66,29 @@ jobs:
         $cerPath = Join-Path $outDir "FoxM_Certificate.cer"
         $password = "FoxM2026Password!"
         
-        # 1. Tạo chứng chỉ PFX & CER
+        # 1. Tạo chứng chỉ PFX & CER cho Publisher CN=FoxMDev
         .\scripts\generate-cert.ps1 -CertPath $pfxPath -Password $password
         
         # Xuất file CER để người dùng cài vào điện thoại Lumia
         $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfxPath, $password)
         [System.IO.File]::WriteAllBytes($cerPath, $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
         
-        # 2. Tìm file .appx
-        $appxFiles = Get-ChildItem -Path $outDir -Recurse -Filter "*.appx"
+        # 2. Tìm chỉ riêng file FoxM*.appx (không ký lại các gói Microsoft framework dependencies đã có sẵn chữ ký)
+        $appxFiles = Get-ChildItem -Path $outDir -Recurse -Filter "FoxM*.appx"
         if ($appxFiles.Count -eq 0) {
-          $appxFiles = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE "src/FoxM.UwpHost/bin") -Recurse -Filter "*.appx"
+          $appxFiles = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE "src/FoxM.UwpHost/bin") -Recurse -Filter "FoxM*.appx"
         }
         
-        # 3. Ký số bằng SignTool x64/x86 host
-        $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -match "\\x64\\" -or $_.FullName -match "\\x86\\" } | Select-Object -First 1).FullName
+        # 3. Ký số bằng SignTool x64 host
+        $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -match "\\x64\\" } | Select-Object -First 1).FullName
         Write-Host "[FoxM Sign] Sử dụng SignTool: $signtool"
         
         foreach ($file in $appxFiles) {
-          Write-Host "[FoxM Sign] Đang ký số file: $($file.FullName)"
+          Write-Host "[FoxM Sign] Đang ký số file FoxM: $($file.FullName)"
           & $signtool sign /fd SHA256 /a /f $pfxPath /p $password $file.FullName
         }
         
-        Write-Host "[FoxM Sign] Ký số hoàn tất thành công!" -ForegroundColor Green
+        Write-Host "[FoxM Sign] Ký số gói FoxM hoàn tất thành công!" -ForegroundColor Green
 
     - name: 7. Tải Gói .appx Lên GitHub Artifacts
       uses: actions/upload-artifact@v4
