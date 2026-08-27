@@ -40,8 +40,8 @@ namespace FoxM.UwpHost.Services
 
         public static void ForceTrimMemory()
         {
-            // 1. Dọn rác .NET Managed GC
-            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            // 1. Dọn rác .NET Managed GC (UWP compatible)
+            GC.Collect();
             GC.WaitForPendingFinalizers();
 
             // 2. Thông báo yêu cầu dọn rác SpiderMonkey C++
