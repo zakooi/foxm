@@ -45,12 +45,15 @@
   </Applications>
 
   <Capabilities>
-    <!-- Quyền mạng internet cơ bản -->
+    <!-- Quyen mang internet co ban -->
     <Capability Name="internetClient" />
     <Capability Name="internetClientServer" />
     <Capability Name="privateNetworkClientServer" />
 
-    <!-- Quyền đặc quyền mở khóa JIT Compiler cho SpiderMonkey trên Developer Mode -->
+    <!-- Quyen dac biet mo khoa JIT Compiler cho SpiderMonkey tren Developer Mode -->
     <rescap:Capability Name="codeGeneration" />
+
+    <!-- Quyen truy cap Direct3D 11 cho render engine -->
+    <DeviceCapability Name="graphicsCapture" />
   </Capabilities>
 </Package>

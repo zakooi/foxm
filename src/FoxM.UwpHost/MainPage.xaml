@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:FoxM.UwpHost"
+    xmlns:goanna="using:FoxM.GoannaRuntime"
     xmlns:services="using:FoxM.UwpHost.Services"
     Background="#FF121214"
     Loaded="Page_Loaded">
@@ -63,17 +64,16 @@
         <!-- 2. PROGRESS BAR -->
         <ProgressBar x:Name="WebProgressBar" Grid.Row="1" Height="3" Foreground="#FFD85012" Visibility="Collapsed"/>
 
-        <!-- 3. VIEWPORT CONTAINER (Active Web View Engine) -->
+        <!-- 3. VIEWPORT CONTAINER (Goanna/Gecko C++ Engine) -->
         <Grid x:Name="ViewportContainer" Grid.Row="2" Background="#FF121214">
-            <!-- Native Web View Control -->
-            <WebView x:Name="BrowserCore" 
-                     HorizontalAlignment="Stretch" 
-                     VerticalAlignment="Stretch"
-                     NavigationStarting="BrowserCore_NavigationStarting"
-                     ContentLoading="BrowserCore_ContentLoading"
-                     DOMContentLoaded="BrowserCore_DOMContentLoaded"
-                     NavigationCompleted="BrowserCore_NavigationCompleted"
-                     LongRunningScriptDetected="BrowserCore_LongRunningScriptDetected"/>
+            <!-- Goanna Engine View - Direct3D 11 Rendered -->
+            <goanna:GoannaView x:Name="BrowserCore"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              NavigationStarting="BrowserCore_NavigationStarting"
+                              NavigationCompleted="BrowserCore_NavigationCompleted"
+                              TitleChanged="BrowserCore_TitleChanged"
+                              ProgressChanged="BrowserCore_ProgressChanged"/>
 
             <!-- Màn hình chào ban đầu -->
             <StackPanel x:Name="WelcomeOverlay" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" Visibility="Visible">

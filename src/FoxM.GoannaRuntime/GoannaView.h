@@ -23,7 +23,6 @@ namespace FoxM
         /// Control XAML chính bọc nhân Goanna Engine, kế thừa từ SwapChainPanel.
         /// Cho phép nhúng trực tiếp vào giao diện C# XAML của Windows 10 Mobile.
         /// </summary>
-        [Windows::Foundation::Metadata::WebHostHidden]
         public ref class GoannaView sealed : public Windows::UI::Xaml::Controls::SwapChainPanel
         {
         public:
