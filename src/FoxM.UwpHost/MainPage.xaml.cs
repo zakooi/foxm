@@ -5,6 +5,7 @@ using Windows.System;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
+using Windows.Web.Http;
 using FoxM.UwpHost.Services;
 using FoxM.GoannaRuntime;
 
@@ -13,11 +14,13 @@ namespace FoxM.UwpHost
     public sealed partial class MainPage : Page
     {
         private const string DefaultHomePage = "https://duckduckgo.com";
+        private const string ModernGeckoUserAgent = "Mozilla/5.0 (Android; Mobile; rv:109.0) Gecko/115.0 Firefox/115.0";
 
         private TabManagerService _tabManager = new TabManagerService();
         private ObservableCollection<BookmarkItem> _bookmarks = new ObservableCollection<BookmarkItem>();
         private ObservableCollection<HistoryItem> _history = new ObservableCollection<HistoryItem>();
         private DispatcherTimer _memoryTimer;
+        private bool _useGoannaDirect2D = false;
 
         public MainPage()
         {
@@ -100,14 +103,46 @@ namespace FoxM.UwpHost
             WelcomeOverlay.Visibility = Visibility.Collapsed;
             ErrorOverlay.Visibility = Visibility.Collapsed;
 
+            if (_useGoannaDirect2D)
+            {
+                try
+                {
+                    GoannaCore.Navigate(target);
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorState("Lỗi Goanna Direct2D: " + ex.Message);
+                }
+                return;
+            }
+
             try
             {
-                // Điều hướng bằng Lõi C++ Goanna Engine (Direct2D + Necko HTTPS)
-                GoannaCore.Navigate(target);
+                if (target.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase))
+                {
+                    BrowserCore.NavigateToString("<html><body style='background:#121214;color:#888;font-family:sans-serif;text-align:center;padding-top:100px;'><h2>🦊 FoxM Browser</h2><p>Sẵn sàng duyệt web.</p></body></html>");
+                    return;
+                }
+
+                // Gửi HTTP Request với Modern Firefox Gecko User-Agent
+                var uri = new Uri(target);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.UserAgent.TryParseAdd(ModernGeckoUserAgent);
+                request.Headers.Accept.TryParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+                request.Headers.AcceptLanguage.TryParseAdd("vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7");
+
+                BrowserCore.NavigateWithHttpRequestMessage(request);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                ShowErrorState("Không thể mở URL: " + ex.Message);
+                try
+                {
+                    BrowserCore.Navigate(new Uri(target));
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorState("Không thể mở URL: " + ex.Message);
+                }
             }
         }
 
@@ -132,25 +167,111 @@ namespace FoxM.UwpHost
             }
         }
 
+        private void GoannaDirect2DToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            _useGoannaDirect2D = GoannaDirect2DToggle.IsOn;
+            if (_useGoannaDirect2D)
+            {
+                BrowserCore.Visibility = Visibility.Collapsed;
+                GoannaCore.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                GoannaCore.Visibility = Visibility.Collapsed;
+                BrowserCore.Visibility = Visibility.Visible;
+            }
+            NavigateTo(UrlTextBox.Text);
+        }
+
         // =========================================================================
-        // SỰ KIỆN GOANNA C++ ENGINE
+        // SỰ KIỆN WEBVIEW (ACTIVE FULL WEB ENGINE)
+        // =========================================================================
+
+        private void BrowserCore_NavigationStarting(WebView sender, WebViewNavigationStartingEventArgs args)
+        {
+            WebProgressBar.Visibility = Visibility.Visible;
+            WebProgressBar.IsIndeterminate = true;
+
+            if (args.Uri != null)
+            {
+                UrlTextBox.Text = args.Uri.ToString();
+                if (_tabManager.ActiveTab != null)
+                {
+                    _tabManager.ActiveTab.Url = args.Uri.ToString();
+                }
+                UpdateBookmarkStar(args.Uri.ToString());
+            }
+        }
+
+        private void BrowserCore_ContentLoading(WebView sender, WebViewContentLoadingEventArgs args)
+        {
+            WebProgressBar.IsIndeterminate = false;
+            WebProgressBar.Value = 50;
+        }
+
+        private async void BrowserCore_DOMContentLoaded(WebView sender, WebViewDOMContentLoadedEventArgs args)
+        {
+            WebProgressBar.Value = 85;
+
+            // Nạp Viewport fix & Polyfill cho màn hình Lumia
+            try
+            {
+                string initScript = @"
+                    (function() {
+                        var meta = document.querySelector('meta[name=""viewport""]');
+                        if (!meta) {
+                            meta = document.createElement('meta');
+                            meta.name = 'viewport';
+                            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes';
+                            document.head.appendChild(meta);
+                        }
+                    })();
+                ";
+                await BrowserCore.InvokeScriptAsync("eval", new[] { initScript });
+            }
+            catch { }
+
+            // Cập nhật tiêu đề trang
+            string title = BrowserCore.DocumentTitle;
+            if (!string.IsNullOrWhiteSpace(title) && _tabManager.ActiveTab != null)
+            {
+                _tabManager.ActiveTab.Title = title;
+                if (args.Uri != null)
+                {
+                    await HistoryService.AddEntryAsync(_history, title, args.Uri.ToString());
+                }
+            }
+        }
+
+        private void BrowserCore_NavigationCompleted(WebView sender, WebViewNavigationCompletedEventArgs args)
+        {
+            WebProgressBar.Visibility = Visibility.Collapsed;
+            BackButton.IsEnabled = BrowserCore.CanGoBack;
+            ForwardButton.IsEnabled = BrowserCore.CanGoForward;
+
+            if (!args.IsSuccess)
+            {
+                ShowErrorState($"Lỗi kết nối mạng ({args.WebErrorStatus}). Vui lòng kiểm tra Wi-Fi / 3G.");
+            }
+            else
+            {
+                ErrorOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BrowserCore_LongRunningScriptDetected(WebView sender, WebViewLongRunningScriptDetectedEventArgs args)
+        {
+            args.StopPageScriptExecution = false;
+        }
+
+        // =========================================================================
+        // SỰ KIỆN GOANNA DIRECT2D C++ ENGINE
         // =========================================================================
 
         private void GoannaCore_NavigationStarting(string url)
         {
             WebProgressBar.Visibility = Visibility.Visible;
-            WebProgressBar.IsIndeterminate = false;
             WebProgressBar.Value = 20;
-
-            if (!string.IsNullOrEmpty(url))
-            {
-                UrlTextBox.Text = url;
-                if (_tabManager.ActiveTab != null)
-                {
-                    _tabManager.ActiveTab.Url = url;
-                }
-                UpdateBookmarkStar(url);
-            }
         }
 
         private void GoannaCore_ProgressChanged(double progress)
@@ -174,12 +295,9 @@ namespace FoxM.UwpHost
         private void GoannaCore_NavigationCompleted(string url, bool success)
         {
             WebProgressBar.Visibility = Visibility.Collapsed;
-            BackButton.IsEnabled = GoannaCore.CanGoBack;
-            ForwardButton.IsEnabled = GoannaCore.CanGoForward;
-
             if (!success)
             {
-                ShowErrorState("Lỗi kết nối máy chủ hoặc phản hồi mạng. Vui lòng kiểm tra Wi-Fi / 3G.");
+                ShowErrorState("Không thể kết nối máy chủ web.");
             }
             else
             {
@@ -257,37 +375,55 @@ namespace FoxM.UwpHost
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GoannaCore != null && GoannaCore.CanGoBack)
+            if (_useGoannaDirect2D)
             {
-                GoannaCore.GoBack();
+                if (GoannaCore != null && GoannaCore.CanGoBack) GoannaCore.GoBack();
+            }
+            else
+            {
+                if (BrowserCore != null && BrowserCore.CanGoBack) BrowserCore.GoBack();
             }
         }
 
         private void ForwardButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GoannaCore != null && GoannaCore.CanGoForward)
+            if (_useGoannaDirect2D)
             {
-                GoannaCore.GoForward();
+                if (GoannaCore != null && GoannaCore.CanGoForward) GoannaCore.GoForward();
+            }
+            else
+            {
+                if (BrowserCore != null && BrowserCore.CanGoForward) BrowserCore.GoForward();
             }
         }
 
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GoannaCore != null)
+            if (_useGoannaDirect2D)
             {
-                GoannaCore.Reload();
+                if (GoannaCore != null) GoannaCore.Reload();
             }
             else
             {
-                NavigateTo(UrlTextBox.Text);
+                if (BrowserCore != null) BrowserCore.Refresh();
+                else NavigateTo(UrlTextBox.Text);
             }
         }
 
-        private void ReaderButton_Click(object sender, RoutedEventArgs e)
+        private async void ReaderButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GoannaCore != null)
+            if (_useGoannaDirect2D)
             {
                 GoannaCore.Render();
+            }
+            else
+            {
+                string readerScript = ReaderModeService.GenerateReaderScript(ReaderTheme.AmoledBlack, 16);
+                try
+                {
+                    await BrowserCore.InvokeScriptAsync("eval", new[] { readerScript });
+                }
+                catch { }
             }
         }
 

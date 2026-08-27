@@ -6,6 +6,7 @@ using namespace Platform;
 using namespace Windows::Foundation;
 using namespace Windows::Web::Http;
 using namespace Windows::Web::Http::Filters;
+using namespace Windows::Security::Cryptography::Certificates;
 using namespace concurrency;
 
 NeckoClient::NeckoClient() :
@@ -24,6 +25,14 @@ IAsyncOperationWithProgress<String^, double>^ NeckoClient::FetchPageAsync(String
         auto filter = ref new HttpBaseProtocolFilter();
         filter->AllowAutoRedirect = true;
         filter->AutomaticDecompression = true;
+
+        // Bỏ qua lỗi chứng chỉ SSL lỗi thời trên Windows 10 Mobile để truy cập được mọi trang web hiện đại
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::Untrusted);
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::Expired);
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::WrongUsage);
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::RevocationInformationMissing);
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::RevocationFailure);
+        filter->IgnorableServerCertificateErrors->Append(ChainValidationResult::InvalidCertificateAuthorityRoot);
 
         auto httpClient = ref new HttpClient(filter);
         httpClient->DefaultRequestHeaders->UserAgent->TryParseAdd(ua);
