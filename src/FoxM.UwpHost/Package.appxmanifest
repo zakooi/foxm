@@ -38,7 +38,7 @@
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
         Description="FoxM Web Browser for Windows 10 Mobile"
-        BackgroundColor="#FFD85012">
+        BackgroundColor="#D85012">
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>
