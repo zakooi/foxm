@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Windows.Data.Json;
 using Windows.Storage;
 
 namespace FoxM.UwpHost.Services
@@ -19,7 +19,7 @@ namespace FoxM.UwpHost.Services
     }
 
     /// <summary>
-    /// Dịch vụ quản lý lịch sử duyệt web an toàn, có tính năng tìm kiếm và dọn dẹp.
+    /// Dịch vụ quản lý lịch sử duyệt web sử dụng Windows.Data.Json gốc cho Windows 10 Mobile.
     /// </summary>
     public static class HistoryService
     {
@@ -32,9 +32,30 @@ namespace FoxM.UwpHost.Services
             {
                 var folder = ApplicationData.Current.LocalFolder;
                 var file = await folder.GetFileAsync(FileName);
-                string json = await FileIO.ReadTextAsync(file);
-                var list = JsonSerializer.Deserialize<List<HistoryItem>>(json);
-                return new ObservableCollection<HistoryItem>(list ?? new List<HistoryItem>());
+                string jsonString = await FileIO.ReadTextAsync(file);
+
+                var list = new ObservableCollection<HistoryItem>();
+                if (JsonArray.TryParse(jsonString, out JsonArray array))
+                {
+                    foreach (var itemVal in array)
+                    {
+                        var obj = itemVal.GetObject();
+                        DateTime visited = DateTime.Now;
+                        if (obj.ContainsKey("VisitedAt"))
+                        {
+                            DateTime.TryParse(obj.GetNamedString("VisitedAt"), out visited);
+                        }
+
+                        list.Add(new HistoryItem
+                        {
+                            Id = obj.ContainsKey("Id") ? obj.GetNamedString("Id") : Guid.NewGuid().ToString(),
+                            Title = obj.ContainsKey("Title") ? obj.GetNamedString("Title") : "",
+                            Url = obj.ContainsKey("Url") ? obj.GetNamedString("Url") : "",
+                            VisitedAt = visited
+                        });
+                    }
+                }
+                return list;
             }
             catch
             {
@@ -49,7 +70,6 @@ namespace FoxM.UwpHost.Services
 
             string safeTitle = string.IsNullOrWhiteSpace(title) ? url : title;
 
-            // Xóa mục trùng trước đó nếu có
             var existing = history.FirstOrDefault(h => h.Url.Equals(url, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
@@ -58,7 +78,6 @@ namespace FoxM.UwpHost.Services
 
             history.Insert(0, new HistoryItem { Title = safeTitle, Url = url, VisitedAt = DateTime.Now });
 
-            // Cắt giảm nếu vượt quá giới hạn để tiết kiệm RAM
             while (history.Count > MaxHistoryCount)
             {
                 history.RemoveAt(history.Count - 1);
@@ -71,10 +90,20 @@ namespace FoxM.UwpHost.Services
         {
             try
             {
+                var array = new JsonArray();
+                foreach (var h in history)
+                {
+                    var obj = new JsonObject();
+                    obj.SetNamedValue("Id", JsonValue.CreateStringValue(h.Id ?? ""));
+                    obj.SetNamedValue("Title", JsonValue.CreateStringValue(h.Title ?? ""));
+                    obj.SetNamedValue("Url", JsonValue.CreateStringValue(h.Url ?? ""));
+                    obj.SetNamedValue("VisitedAt", JsonValue.CreateStringValue(h.VisitedAt.ToString("o")));
+                    array.Add(obj);
+                }
+
                 var folder = ApplicationData.Current.LocalFolder;
                 var file = await folder.CreateFileAsync(FileName, CreationCollisionOption.ReplaceExisting);
-                string json = JsonSerializer.Serialize(history.ToList(), new JsonSerializerOptions { WriteIndented = true });
-                await FileIO.WriteTextAsync(file, json);
+                await FileIO.WriteTextAsync(file, array.Stringify());
             }
             catch (Exception ex)
             {

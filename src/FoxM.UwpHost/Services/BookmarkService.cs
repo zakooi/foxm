@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Windows.Data.Json;
 using Windows.Storage;
 
 namespace FoxM.UwpHost.Services
@@ -19,7 +18,7 @@ namespace FoxM.UwpHost.Services
     }
 
     /// <summary>
-    /// Quản lý danh sách Bookmark (Dấu trang) lưu bền vững trong LocalStorage.
+    /// Quản lý danh sách Bookmark (Dấu trang) sử dụng Windows.Data.Json gốc của Windows 10 Mobile.
     /// </summary>
     public static class BookmarkService
     {
@@ -31,9 +30,24 @@ namespace FoxM.UwpHost.Services
             {
                 var folder = ApplicationData.Current.LocalFolder;
                 var file = await folder.GetFileAsync(FileName);
-                string json = await FileIO.ReadTextAsync(file);
-                var list = JsonSerializer.Deserialize<List<BookmarkItem>>(json);
-                return new ObservableCollection<BookmarkItem>(list ?? GetDefaultBookmarks());
+                string jsonString = await FileIO.ReadTextAsync(file);
+
+                var list = new ObservableCollection<BookmarkItem>();
+                if (JsonArray.TryParse(jsonString, out JsonArray array))
+                {
+                    foreach (var itemVal in array)
+                    {
+                        var obj = itemVal.GetObject();
+                        list.Add(new BookmarkItem
+                        {
+                            Id = obj.ContainsKey("Id") ? obj.GetNamedString("Id") : Guid.NewGuid().ToString(),
+                            Title = obj.ContainsKey("Title") ? obj.GetNamedString("Title") : "",
+                            Url = obj.ContainsKey("Url") ? obj.GetNamedString("Url") : "",
+                            Favicon = obj.ContainsKey("Favicon") ? obj.GetNamedString("Favicon") : "ms-appx:///Assets/Square44x44Logo.png"
+                        });
+                    }
+                }
+                return list.Count > 0 ? list : GetDefaultBookmarks();
             }
             catch
             {
@@ -47,10 +61,20 @@ namespace FoxM.UwpHost.Services
         {
             try
             {
+                var array = new JsonArray();
+                foreach (var b in bookmarks)
+                {
+                    var obj = new JsonObject();
+                    obj.SetNamedValue("Id", JsonValue.CreateStringValue(b.Id ?? ""));
+                    obj.SetNamedValue("Title", JsonValue.CreateStringValue(b.Title ?? ""));
+                    obj.SetNamedValue("Url", JsonValue.CreateStringValue(b.Url ?? ""));
+                    obj.SetNamedValue("Favicon", JsonValue.CreateStringValue(b.Favicon ?? ""));
+                    array.Add(obj);
+                }
+
                 var folder = ApplicationData.Current.LocalFolder;
                 var file = await folder.CreateFileAsync(FileName, CreationCollisionOption.ReplaceExisting);
-                string json = JsonSerializer.Serialize(bookmarks.ToList(), new JsonSerializerOptions { WriteIndented = true });
-                await FileIO.WriteTextAsync(file, json);
+                await FileIO.WriteTextAsync(file, array.Stringify());
             }
             catch (Exception ex)
             {
