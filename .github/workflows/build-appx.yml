@@ -42,7 +42,12 @@ jobs:
       run: |
         .\scripts\generate-cert.ps1 -CertPath "$env:GITHUB_WORKSPACE\FoxM_Cert.pfx" -Password "FoxM2026Password!"
 
-    - name: 5. Biên dịch & Đóng gói Gói .appx cho Windows 10 Mobile
+    - name: 5. Khôi phục Gói NuGet (UWP SDK & Runtimes)
+      shell: cmd
+      run: |
+        nuget restore src\FoxM.UwpHost\FoxM.UwpHost.csproj
+
+    - name: 6. Biên dịch & Đóng gói Gói .appx cho Windows 10 Mobile
       shell: cmd
       run: |
         msbuild src\FoxM.UwpHost\FoxM.UwpHost.csproj ^
@@ -57,7 +62,7 @@ jobs:
           /p:PackageCertificateThumbprint="" ^
           /v:minimal
 
-    - name: 6. Tải Gói .appx Lên GitHub Artifacts
+    - name: 7. Tải Gói .appx Lên GitHub Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: FoxM-Windows10Mobile-${{ matrix.platform }}
