@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ARM, x86]
+        platform: [ARM, ARM64, x86]
 
     steps:
     - name: 1. Checkout Mã nguồn
@@ -59,12 +59,16 @@ jobs:
           /m
 
     - name: 6. Tạo Chứng chỉ & Ký số Gói FoxM .appx
+      env:
+        FOXM_CERT_PASSWORD: ${{ secrets.FOXM_CERT_PASSWORD }}
       shell: pwsh
       run: |
         $outDir = Join-Path $env:GITHUB_WORKSPACE "AppxPackages_${{ matrix.platform }}"
         $pfxPath = Join-Path $env:RUNNER_TEMP "FoxM_Cert.pfx"
         $cerPath = Join-Path $outDir "FoxM_Certificate.cer"
-        $password = "FoxM2026Password!"
+        # Password lấy từ secret FOXM_CERT_PASSWORD; fallback local dev khi chạy ngoài CI.
+        $password = $env:FOXM_CERT_PASSWORD
+        if ([string]::IsNullOrEmpty($password)) { $password = "FoxM2026Password!" }
         
         # 1. Tạo chứng chỉ PFX & CER thời hạn 5 năm cho Publisher CN=FoxMDev
         .\scripts\generate-cert.ps1 -CertPath $pfxPath -Password $password

@@ -19,6 +19,34 @@ namespace FoxM
         public delegate void TitleChangedEventHandler(Platform::String^ newTitle);
         public delegate void ProgressChangedEventHandler(double progress);
 
+        // =====================================================================
+        // AGENT CONTRACTS (do Agent A chốt — các agent khác implement theo,
+        // KHÔNG đổi signature/event đã chốt bên dưới nếu chưa bàn với Agent A):
+        //
+        // (a) NETWORK (Agent Network owns DocShellBridge.cpp):
+        //     - DocShellBridge::LoadUri(Platform::String^ uri) là ASYNC
+        //       (không block UI thread; fetch chạy background).
+        //     - Tiến trình báo về qua internal DocShellBridge::UpdateProgress(double 0.0-1.0)
+        //       và DocShellBridge::OnNavigationComplete(bool success).
+        //     - GoannaView chỉ forward sang events WinRT: ProgressChanged /
+        //       TitleChanged / NavigationCompleted. Không poll, không block.
+        //
+        // (b) RENDER (Agent Render owns WidgetUwp.cpp + phần vẽ trong GoannaView.cpp):
+        //     - Hàm vẽ TƯƠNG LAI phải có dạng:
+        //         void RenderFrame(IDXGISwapChain1* swapChain, UINT viewportWidth, UINT viewportHeight);
+        //       nhận swapchain HIỆN CÓ + viewport w/h, vẽ vào backbuffer rồi Present.
+        //     - TUYỆT ĐỐI KHÔNG tạo swapchain mới mỗi frame; resize dùng
+        //       IDXGISwapChain1::ResizeBuffers như CreateSizeDependentResources đã làm.
+        //     - Gắn panel duy nhất 1 lần qua ISwapChainPanelNative::SetSwapChain.
+        //
+        // (c) JS (Agent JS owns SpiderMonkeyHost.cpp):
+        //     - GoannaView::ExecuteScriptAsync(Platform::String^ script) nhận
+        //       UTF-16 string (Platform::String^), KHÔNG block UI thread
+        //       (dispatch sang background/thread JS rồi return ngay).
+        //     - SpiderMonkeyHost::EvaluateScript giữ nguyên signature;
+        //       GC dọn qua RunGarbageCollector/MinimizeMemoryUsage.
+        // =====================================================================
+
         /// <summary>
         /// Control XAML chính bọc nhân Goanna Engine, kế thừa từ SwapChainPanel.
         /// Cho phép nhúng trực tiếp vào giao diện C# XAML của Windows 10 Mobile.
@@ -63,6 +91,9 @@ namespace FoxM
             void OnPointerMoved(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
             void OnPointerReleased(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
             void OnSizeChanged(Platform::Object^ sender, Windows::UI::Xaml::SizeChangedEventArgs^ e);
+            // Merge: nhận completion async từ DocShellBridge (đã marshal về UI thread),
+            // forward sang events WinRT + vẽ lại. Không gọi trực tiếp từ background thread.
+            void OnLoadEvent(double progress, bool completed, bool success);
 
             Microsoft::WRL::ComPtr<ID3D11Device2> m_d3dDevice;
             Microsoft::WRL::ComPtr<ID3D11DeviceContext2> m_d3dContext;

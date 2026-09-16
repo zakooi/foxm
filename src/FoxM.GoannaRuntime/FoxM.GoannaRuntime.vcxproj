@@ -97,7 +97,7 @@
       <SubSystem>Console</SubSystem>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <GenerateWindowsMetadata>true</GenerateWindowsMetadata>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;dxgi.lib;d2d1.lib;dwrite.lib;Chakrart.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
@@ -119,12 +119,16 @@
     <ClInclude Include="WidgetUwp.h" />
     <ClInclude Include="SpiderMonkeyHost.h" />
     <ClInclude Include="DocShellBridge.h" />
+    <ClInclude Include="HttpStack.h" />
+    <ClInclude Include="LiteRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GoannaView.cpp" />
     <ClCompile Include="WidgetUwp.cpp" />
     <ClCompile Include="SpiderMonkeyHost.cpp" />
     <ClCompile Include="DocShellBridge.cpp" />
+    <ClCompile Include="HttpStack.cpp" />
+    <ClCompile Include="LiteRenderer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

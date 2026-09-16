@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -51,7 +53,20 @@ namespace FoxM
             void OnNavigationStart(const std::wstring& uri);
             void OnNavigationComplete(bool success);
 
+            // Body/content cua lan tai gan nhat cho agent Render doc.
+            // (internal them moi — khong doi public API da chot.)
+            Platform::String^ GetLastBody();
+            Platform::String^ GetLastContentType();
+            int GetLastStatusCode();
+
+            // Callback async cho GoannaView (merge): (progress 0..1, completed, success).
+            // Được gọi từ UpdateProgress (completed=false) và OnNavigationComplete
+            // (completed=true), có thể trên thread pool — bên nhận phải marshal về UI.
+            void SetLoadCallback(std::function<void(double progress, bool completed, bool success)> callback);
+
         private:
+            void StartFetch(const std::wstring& uri, int generation);
+            void InvokeLoadCallback(double progress, bool completed, bool success);
             NavigationState m_state;
             double m_progress;
             Platform::String^ m_currentUri;
@@ -59,6 +74,16 @@ namespace FoxM
             int m_currentHistoryIndex;
             std::vector<std::wstring> m_historyUrls;
             std::vector<std::wstring> m_historyTitles;
+            // Tai gan nhat (cho Render): body UTF-16 + content type + status.
+            std::wstring m_lastBody;
+            std::wstring m_lastContentType;
+            int m_lastStatusCode;
+            // Tang moi lan LoadUri/GoBack/GoForward/Reload/StopLoading de
+            // bo qua completion tre (stale) cua cac lan tai cu.
+            int m_loadGeneration;
+            // Callback async (merge) + lock vì completion chạy trên thread pool.
+            std::function<void(double progress, bool completed, bool success)> m_loadCallback;
+            std::mutex m_callbackMutex;
         };
     }
 }

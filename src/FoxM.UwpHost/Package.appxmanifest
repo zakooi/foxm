@@ -9,8 +9,7 @@
   <Identity
     Name="FoxM.Browser.Windows10Mobile"
     Publisher="CN=FoxMDev"
-    Version="1.0.0.0"
-    ProcessorArchitecture="arm" />
+    Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="a8f6d72a-192a-43c2-bf7b-2384a56c3821" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
@@ -52,8 +51,9 @@
 
     <!-- Quyen dac biet mo khoa JIT Compiler cho SpiderMonkey tren Developer Mode -->
     <rescap:Capability Name="codeGeneration" />
-
-    <!-- Quyen truy cap Direct3D 11 cho render engine -->
-    <DeviceCapability Name="graphicsCapture" />
+    <!-- GHI CHU (Agent A): D3D11 render truc tiep khong can capability;
+         DeviceCapability graphicsCapture truoc day khong hop le (khong ton tai
+         trong UWP schema) nen da go bo. Neu can screen-capture sau nay,
+         Agent tuong ung them <uap:Capability Name="graphicsCapture" /> theo schema. -->
   </Capabilities>
 </Package>
